@@ -44,10 +44,6 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 		inherit: true,
 		pp: 5,
 	},
-	barbbarrage: {
-		inherit: true,
-		isNonstandard: "Past",
-	},
 	beakblast: {
 		inherit: true,
 		basePower: 120,
@@ -115,16 +111,6 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	burnup: {
 		inherit: true,
 		isNonstandard: null,
-	},
-	ceaselessedge: {
-		inherit: true,
-		onAfterHit(target, source, move) {
-			if (!move.hasSheerForce && source.hp) {
-				for (const side of source.side.foeSidesWithConditions()) {
-					side.addSideCondition('spikes');
-				}
-			}
-		},
 	},
 	celebrate: {
 		inherit: true,
@@ -214,7 +200,7 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 					if (target.status === status) {
 						this.add('-fail', target, status);
 					} else {
-						this.add('-fail', source);
+						this.add('-fail', target);
 					}
 					return;
 				}
@@ -242,7 +228,7 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	},
 	doubleshock: {
 		inherit: true,
-		isNonstandard: "Custom",
+		isNonstandard: "Past",
 	},
 	dragonascent: {
 		inherit: true,
@@ -318,7 +304,7 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 				if (!action) {
 					this.effectState.duration!++;
 					// TODO: this is a quick fix, check if move priority is changed when Mental Herb cures Encore
-				} else if (!target.hasItem('mentalherb')) {
+				} else if (action.moveid !== move.id && !target.hasItem('mentalherb')) {
 					const priority = action.priority -
 						this.dex.moves.get(action.moveid).priority +
 						this.dex.moves.get(move.id).priority;
@@ -345,7 +331,7 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	fakeout: {
 		inherit: true,
 		onDisableMove(pokemon) {
-			if (pokemon.activeMoveActions > 1) {
+			if (pokemon.activeMoveActions) {
 				pokemon.disableMove('fakeout');
 			}
 		},
@@ -379,7 +365,7 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 		inherit: true,
 		basePower: 100,
 		onDisableMove(pokemon) {
-			if (pokemon.activeMoveActions > 1) {
+			if (pokemon.activeMoveActions) {
 				pokemon.disableMove('firstimpression');
 			}
 		},
@@ -470,14 +456,6 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	},
 	growth: {
 		inherit: true,
-		onModifyMove(move, pokemon) {
-			if (pokemon.hasAbility('megasol') && this.field.weather !== 'sunnyday') {
-				// TODO: check in future patches
-				delete move.boosts;
-			} else if (['sunnyday', 'desolateland'].includes(pokemon.effectiveWeather())) {
-				move.boosts = { atk: 2, spa: 2 };
-			}
-		},
 		type: "Grass",
 	},
 	gust: {
@@ -515,6 +493,10 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	hornattack: {
 		inherit: true,
 		isNonstandard: "Past",
+	},
+	howl: {
+		inherit: true,
+		flags: { snatch: 1, sound: 1, bypasssub: 1, metronome: 1 },
 	},
 	hydrosteam: {
 		inherit: true,
@@ -618,7 +600,13 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	makeitrain: {
 		inherit: true,
 		accuracy: 95,
-		isNonstandard: "Past",
+		self: {
+			boosts: {
+				spa: -2,
+			},
+		},
+		desc: "Lowers the user's Special Attack by 2 stages.",
+		shortDesc: "Lowers the user's Sp. Atk by 2. Hits foe(s).",
 	},
 	malignantchain: {
 		inherit: true,
@@ -642,6 +630,10 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 		isNonstandard: "Past",
 	},
 	mightycleave: {
+		inherit: true,
+		isNonstandard: "Past",
+	},
+	milkdrink: {
 		inherit: true,
 		isNonstandard: "Past",
 	},
@@ -691,10 +683,6 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	nihillight: {
 		inherit: true,
 		pp: 5,
-	},
-	noretreat: {
-		inherit: true,
-		isNonstandard: "Past",
 	},
 	noxioustorque: {
 		inherit: true,
@@ -798,7 +786,9 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	},
 	ragefist: {
 		inherit: true,
-		isNonstandard: "Past",
+		// Hit counter reset is implemented in Pokemon#clearVolatile
+		desc: "Power is equal to 50+(X*50), where X is the total number of times the user has been hit by a damaging attack during the battle, even if the user did not lose HP from the attack. X cannot be greater than 6 and resets to 0 when the user leaves the field. Each hit of a multi-hit attack is counted, but confusion damage is not counted.",
+		shortDesc: "+50 BP/hit on user. Max 6 hits. Resets on switch-out.",
 	},
 	razorleaf: {
 		inherit: true,
@@ -819,7 +809,7 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	},
 	revivalblessing: {
 		inherit: true,
-		isNonstandard: "Custom",
+		isNonstandard: "Past",
 	},
 	roaroftime: {
 		inherit: true,
@@ -963,10 +953,6 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 		isNonstandard: "Past",
 		pp: 10,
 	},
-	spiritbreak: {
-		inherit: true,
-		isNonstandard: "Past",
-	},
 	spiritshackle: {
 		inherit: true,
 		basePower: 90,
@@ -986,16 +972,6 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 	stomp: {
 		inherit: true,
 		isNonstandard: "Past",
-	},
-	stoneaxe: {
-		inherit: true,
-		onAfterHit(target, source, move) {
-			if (!move.hasSheerForce && source.hp) {
-				for (const side of source.side.foeSidesWithConditions()) {
-					side.addSideCondition('stealthrock');
-				}
-			}
-		},
 	},
 	stormthrow: {
 		inherit: true,
@@ -1088,10 +1064,6 @@ export const Moves: import('../../../sim/dex-moves').ModdedMoveDataTable = {
 		isNonstandard: "Past",
 	},
 	thundershock: {
-		inherit: true,
-		isNonstandard: "Past",
-	},
-	topsyturvy: {
 		inherit: true,
 		isNonstandard: "Past",
 	},

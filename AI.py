@@ -503,72 +503,59 @@ def copy_to_clipboard(text: str) -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 
 BUILTIN_TEAM = """
-Great Tusk @ Leftovers
-Ability: Protosynthesis
-Shiny: Yes
-Tera Type: Water
-EVs: 252 HP / 252 Def / 4 Spe
-Impish Nature
-- Earthquake
-- Rapid Spin
-- Knock Off
-- Ice Spinner
-
-Gholdengo @ Choice Scarf
-Ability: Good as Gold
-Shiny: Yes
-Tera Type: Steel
-EVs: 4 HP / 252 SpA / 252 Spe
-Timid Nature
-IVs: 0 Atk
-- Make It Rain
-- Shadow Ball
-- Trick
-- Focus Blast
-
-Dragapult @ Choice Specs
-Ability: Infiltrator
-Shiny: Yes
-Tera Type: Dragon
-EVs: 4 HP / 252 SpA / 252 Spe
-Timid Nature
-- Draco Meteor
-- Shadow Ball
-- Flamethrower
+Pidgeot @ Heavy-Duty Boots
+Ability: Keen Eye
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Brave Bird
 - U-turn
+- Roost
+- Quick Attack
 
-Gliscor @ Toxic Orb
-Ability: Poison Heal
-Shiny: Yes
-Tera Type: Water
-EVs: 244 HP / 184 Def / 80 Spe
-Impish Nature
-- Spikes
-- Earthquake
-- Protect
-- Toxic
+Alakazam @ Life Orb
+Ability: Magic Guard
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Psychic
+- Focus Blast
+- Shadow Ball
+- Recover
 
-Kingambit @ Black Glasses
-Ability: Supreme Overlord
-Shiny: Yes
-Tera Type: Dark
-EVs: 168 HP / 252 Atk / 88 Spe
+Rhydon @ Eviolite
+Ability: Lightning Rod
+EVs: 252 HP / 252 Atk / 4 SpD
 Adamant Nature
-- Kowtow Cleave
-- Sucker Punch
-- Iron Head
-- Swords Dance
+- Earthquake
+- Stone Edge
+- Megahorn
+- Stealth Rock
 
-Iron Valiant @ Booster Energy
-Ability: Quark Drive
-Shiny: Yes
-Tera Type: Fairy
-EVs: 4 Atk / 252 SpA / 252 Spe
-Naive Nature
-- Moonblast
-- Close Combat
-- Thunderbolt
-- Calm Mind
+Gyarados @ Leftovers
+Ability: Intimidate
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Dragon Dance
+- Waterfall
+- Ice Fang
+- Earthquake
+
+Exeggutor @ Sitrus Berry
+Ability: Harvest
+EVs: 252 HP / 252 SpA / 4 SpD
+Modest Nature
+- Giga Drain
+- Psychic
+- Sleep Powder
+- Leech Seed
+
+Arcanine @ Heavy-Duty Boots
+Ability: Intimidate
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Flare Blitz
+- Extreme Speed
+- Wild Charge
+- Morning Sun
 """
 
 FORMATS = [
@@ -756,9 +743,10 @@ def startup_wizard() -> dict:
 class PokémonAssistant(Player):
 
     # ── TEAM PREVIEW ──────────────────────────────────────────────────────────
+    # ── TEAM PREVIEW ──────────────────────────────────────────────────────────
     async def teampreview(self, battle) -> str:
         print("\n" + "═" * 70)
-        print("🔍  STRATEGY PHASE: TEAM PREVIEW")
+        print("🤖  STRATEGY PHASE: AUTOMATED TEAM PREVIEW")
         print(f"\nOpponent's revealed team:\n{opp_team_summary(battle.opponent_team)}")
         print("═" * 70)
 
@@ -769,136 +757,78 @@ class PokémonAssistant(Player):
 
         is_doubles = isinstance(battle, DoubleBattle)
         if is_doubles:
-            print("\n[DECISION] Choose Lead 1 and Lead 2 (Enter number 1–6)")
-            lead_idx_1 = -1
-            lead_idx_2 = -1
-            while True:
-                try:
-                    choice1 = await asyncio.to_thread(input, "Lead 1 > ")
-                    idx1 = int(choice1.strip()) - 1
-                    if 0 <= idx1 < len(team_list):
-                        lead_idx_1 = idx1
-                        break
-                    print(f"❌  Pick a number between 1 and {len(team_list)}")
-                except (ValueError, EOFError):
-                    print("❌  Invalid input. Please enter a number.")
-            while True:
-                try:
-                    choice2 = await asyncio.to_thread(input, "Lead 2 > ")
-                    idx2 = int(choice2.strip()) - 1
-                    if 0 <= idx2 < len(team_list) and idx2 != lead_idx_1:
-                        lead_idx_2 = idx2
-                        break
-                    if idx2 == lead_idx_1:
-                        print("❌  Lead 2 cannot be the same as Lead 1.")
-                    else:
-                        print(f"❌  Pick a number between 1 and {len(team_list)}")
-                except (ValueError, EOFError):
-                    print("❌  Invalid input. Please enter a number.")
+            print("\n[AI DECISION] Automatically selecting slots 1 and 2 as leads.")
+            # Default to the first two slots as leads
+            lead_idx_1 = 0
+            lead_idx_2 = 1 if len(team_list) > 1 else 0
             
             order = list(range(1, len(team_list) + 1))
             val1 = lead_idx_1 + 1
             val2 = lead_idx_2 + 1
-            order.remove(val1)
-            order.remove(val2)
+            
+            if val1 in order:
+                order.remove(val1)
+            if val2 in order:
+                order.remove(val2)
+                
             order.insert(0, val2)
             order.insert(0, val1)
             return "/team " + "".join(map(str, order))
         else:
-            print("\n[DECISION] Who should LEAD? (Enter number 1–6)")
-            while True:
-                try:
-                    choice = await asyncio.to_thread(input, "Lead > ")
-                    idx = int(choice.strip()) - 1
-                    if 0 <= idx < len(team_list):
-                        order = list(range(1, len(team_list) + 1))
-                        order.insert(0, order.pop(idx))
-                        return "/team " + "".join(map(str, order))
-                    print(f"❌  Pick a number between 1 and {len(team_list)}")
-                except (ValueError, EOFError):
-                    print("❌  Invalid input. Please enter a number.")
-
+            print("\n[AI DECISION] Automatically selecting slot 1 as lead.")
+            # Default to the first slot as lead
+            idx = 0
+            order = list(range(1, len(team_list) + 1))
+            order.insert(0, order.pop(idx))
+            return "/team " + "".join(map(str, order))
     # ── MAIN DECISION LOOP ────────────────────────────────────────────────────
-    async def choose_move(self, battle) -> DoubleBattleOrder | SingleBattleOrder | DefaultBattleOrder:
-        if isinstance(battle, DoubleBattle):
-            return await self.choose_doubles_move(battle)
+    # ── MAIN DECISION LOOP ────────────────────────────────────────────────────
+    # ── MAIN DECISION LOOP ────────────────────────────────────────────────────
+    async def choose_move(self, battle) -> DoubleBattleOrder | SingleBattleOrder:
+        # 1. Handle forced switches (if your active Pokemon faints)
+        if battle.available_switches and not battle.available_moves:
+            print(f"🤖 Forced switch! Sending out {battle.available_switches[0].species}")
+            return self.create_order(battle.available_switches[0])
 
-        me  = battle.active_pokemon
-        opp = battle.opponent_active_pokemon
+        # 2. Heuristic Evaluation: Calculate the value of all attacks
+        best_move = None
+        highest_score = -1
 
-        if not me or not opp:
-            return self.choose_random_move(battle)
+        if battle.available_moves:
+            for move in battle.available_moves:
+                power = move.base_power
+                multiplier = 1.0 
+                
+                # Check type effectiveness against the opponent
+                if battle.opponent_active_pokemon:
+                    multiplier = battle.opponent_active_pokemon.damage_multiplier(move)
+                
+                # Apply STAB (Same Type Attack Bonus) for 1.5x damage
+                if move.type in [battle.active_pokemon.type_1, battle.active_pokemon.type_2]:
+                    power *= 1.5
+                    
+                # Calculate the final strategic score
+                move_score = power * multiplier
+                
+                if move_score > highest_score:
+                    highest_score = move_score
+                    best_move = move
 
-        prompt       = build_llm_prompt(battle)
-        clipboard_ok = copy_to_clipboard(prompt)
+        # 3. The "Thinking" Phase: Smart Switching
+        # If our best attack is weak (score < 60) and we have backup, retreat!
+        if highest_score < 60 and battle.available_switches:
+            best_switch = battle.available_switches[0]
+            print(f"🧠 AI calculated a disadvantage! Retreating to {best_switch.species}.")
+            return self.create_order(best_switch)
 
-        print("\n" + "═" * 70)
-        print(prompt)
-        print("═" * 70)
-
-        if clipboard_ok:
-            print("\n✅  Prompt copied to clipboard — paste into your AI chat (Ctrl+V).")
-        else:
-            print("\n⚠️   Clipboard unavailable. Copy the prompt above manually.")
-
-        print("\n📋  QUICK REFERENCE")
-        print("  Attacks:")
-        for i, m in enumerate(battle.available_moves, 1):
-            tera_note = "  ← can TERA" if battle.can_tera else ""
-            print(f"    move {i}  →  {m.id.upper()}{tera_note}")
-        print("  Switches:")
-        for i, s in enumerate(battle.available_switches, 1):
-            print(f"    switch {i}  →  {s.species} ({s.current_hp_fraction*100:.0f}%)")
-        if battle.can_tera:
-            print("\n  ✨  TERASTALIZATION AVAILABLE  →  prefix with 'tera'")
-            print("      e.g.  'tera move 1'  or  'tera 1'")
-
-        print("\nCommands:  move <n>  |  switch <n>  |  tera [move] <n>  |  c (re-copy prompt)")
-
-        while True:
-            try:
-                raw = await asyncio.to_thread(input, "\n[DECISION] > ")
-            except (EOFError, KeyboardInterrupt):
-                print("\nInterrupted — picking random move.")
-                return self.choose_random_move(battle)
-
-            tokens = raw.strip().lower().split()
-            if not tokens:
-                continue
-
-            if tokens[0] == "c":
-                if copy_to_clipboard(prompt):
-                    print("✅  Prompt copied to clipboard!")
-                else:
-                    print("⚠️   Clipboard unavailable.")
-                continue
-
-            try:
-                if tokens[0] == "tera":
-                    if not battle.can_tera:
-                        print("❌  Terastalization already used or unavailable.")
-                        continue
-                    idx = int(tokens[-1]) - 1
-                    return self.create_order(battle.available_moves[idx], terastallize=True)
-
-                elif tokens[0] == "move" and len(tokens) > 1:
-                    idx = int(tokens[1]) - 1
-                    return self.create_order(battle.available_moves[idx])
-
-                elif tokens[0] == "switch" and len(tokens) > 1:
-                    idx = int(tokens[1]) - 1
-                    return self.create_order(battle.available_switches[idx])
-
-                else:
-                    print("❌  Unknown command. Use:  move <n>  |  switch <n>  |  tera [move] <n>  |  c")
-
-            except (ValueError, IndexError):
-                print(
-                    f"❌  Invalid index. "
-                    f"Moves: 1–{len(battle.available_moves)}  |  "
-                    f"Switches: 1–{len(battle.available_switches)}"
-                )
-
+        # 4. Execute the best attack
+        if best_move:
+            print(f"⚔️  AI selected {best_move.id.upper()} (Heuristic Score: {highest_score})")
+            return self.create_order(best_move)
+                
+        # 5. Fallback
+        print("🤖 Fallback: Selecting random action.")
+        return self.choose_random_move(battle)
     async def choose_doubles_move(self, battle: DoubleBattle) -> DoubleBattleOrder:
         prompt = build_doubles_llm_prompt(battle)
         clipboard_ok = copy_to_clipboard(prompt)
@@ -962,7 +892,7 @@ class PokémonAssistant(Player):
 
         return DoubleBattleOrder(first_order=final_orders[0] or PassBattleOrder(), second_order=final_orders[1] or PassBattleOrder())
 
-    async def choose_move_order(self, battle) -> DoubleBattleOrder | SingleBattleOrder | DefaultBattleOrder:
+    async def choose_move_order(self, battle) -> DoubleBattleOrder | SingleBattleOrder:
         return await self.choose_move(battle)
 
 

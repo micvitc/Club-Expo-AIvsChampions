@@ -486,7 +486,7 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 		desc: "Forces the Pokemon of the Day onto every random team.",
 		onBegin() {
 			if (global.Config?.potd) {
-				this.add('rule', "Pokemon of the Day: " + this.dex.species.get(Config.potd).name);
+				this.add('rule', "Pokemon of the Day: " + this.dex.species.get(global.Config.potd).name);
 			}
 		},
 	},
@@ -1432,9 +1432,9 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 	desyncclausemod: {
 		effectType: 'Rule',
 		name: 'Desync Clause Mod',
-		desc: 'If a desync would happen, the move fails instead. This rule currently covers Bide, Counter, and Psywave.',
+		desc: 'If a desync would happen, the move resolves to link battle behavior from the acting player\'s perspective. This rule covers online desyncs related to move selection, and offline disparities related to Bide and Psywave.',
 		onBegin() {
-			this.add('rule', 'Desync Clause Mod: Desyncs changed to move failure.');
+			this.add('rule', 'Desync Clause Mod: Desyncs resolve to link battle behavior from the acting player\'s perspective.');
 		},
 		// Hardcoded in gen1/moves.ts
 		// Can't be disabled (no precedent for how else to handle desyncs)
@@ -1789,10 +1789,10 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 			return { ...species, types };
 		},
 		onSwitchIn(pokemon) {
-			this.add('-start', pokemon, 'typechange', (pokemon.illusion || pokemon).getTypes(true).join('/'), '[silent]');
+			this.add('-start', pokemon, 'typechange', (pokemon.illusion || pokemon).getTypes(true).join('/'), '[silent]', '[from] format: Camomons Mod');
 		},
 		onAfterMega(pokemon) {
-			this.add('-start', pokemon, 'typechange', (pokemon.illusion || pokemon).getTypes(true).join('/'), '[silent]');
+			this.add('-start', pokemon, 'typechange', (pokemon.illusion || pokemon).getTypes(true).join('/'), '[silent]', '[from] format: Camomons Mod');
 		},
 	},
 	allowtradeback: {
@@ -2697,7 +2697,7 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 				const isGod = this.ruleTable.isRestrictedSpecies(godSpecies);
 				return isGod;
 			}) || target.side.team[0];
-			const stat = Dex.stats.ids()[target.side.team.indexOf(target.set)];
+			const stat = this.dex.stats.ids()[target.side.team.indexOf(target.set)];
 			const newSpecies = this.dex.deepClone(species);
 			let godSpecies = this.dex.species.get(god.species);
 			if (typeof godSpecies.battleOnly === 'string') {
@@ -2734,7 +2734,7 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 			const obtainableAbilityPool = new Set<string>();
 			const matchingSpecies = this.dex.species.all()
 				.filter(species => (
-					(!species.isNonstandard || this.ruleTable.has(`+pokemontag:${this.toID(species.isNonstandard)}`)) &&
+					(!species.isNonstandard || this.ruleTable.has(`+tag:${this.toID(species.isNonstandard)}`)) &&
 					species.types.every(type => curSpecies.types.includes(type)) &&
 					species.types.length === curSpecies.types.length && !this.ruleTable.isBannedSpecies(species)
 				));
@@ -2751,7 +2751,7 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 		checkCanLearn(move, species, setSources, set) {
 			const matchingSpecies = this.dex.species.all()
 				.filter(s => (
-					(!s.isNonstandard || this.ruleTable.has(`+pokemontag:${this.toID(s.isNonstandard)}`)) &&
+					(!s.isNonstandard || this.ruleTable.has(`+tag:${this.toID(s.isNonstandard)}`)) &&
 					s.types.every(type => species.types.includes(type)) &&
 					s.types.length === species.types.length && !this.ruleTable.isBannedSpecies(s)
 				));
@@ -2858,7 +2858,7 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 					return [`Pok\u00e9mon can't fuse with banned Pok\u00e9mon.`, `(${fusionName} is banned.)`];
 				}
 				if (fusion.isNonstandard &&
-					!(this.ruleTable.has(`+pokemontag:${this.toID(fusion.isNonstandard)}`) ||
+					!(this.ruleTable.has(`+tag:${this.toID(fusion.isNonstandard)}`) ||
 						this.ruleTable.has(`+pokemon:${fusion.id}`) ||
 						this.ruleTable.has(`+basepokemon:${this.toID(fusion.baseSpecies)}`))) {
 					return [`${fusion.name} is marked as ${fusion.isNonstandard}, which is banned.`];
@@ -3001,7 +3001,7 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 			}
 			const rt = this.ruleTable;
 			if ((this.toID(set.name) !== species.id && this.toID(set.name) !== impersonation.id) ||
-				(impersonation.isNonstandard && !(rt.has(`+pokemontag:${this.toID(impersonation.isNonstandard)}`) ||
+				(impersonation.isNonstandard && !(rt.has(`+tag:${this.toID(impersonation.isNonstandard)}`) ||
 					rt.has(`+pokemon:${impersonation.id}`) || rt.has(`+basepokemon:${this.toID(impersonation.baseSpecies)}`)))) {
 				return [`All Pok\u00e9mon must either have no nickname or must be nicknamed after a Pok\u00e9mon.`];
 			}
@@ -3073,17 +3073,17 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 			let buf = '<li class="result">';
 			buf += `<span class="col numcol">${species.tier}</span> `;
 			buf += `<span class="col iconcol"><psicon pokemon="${species.id}"/></span> `;
-			buf += `<span class="col pokemonnamecol" style="white-space:nowrap"><a href="https://${Config.routes.dex}/pokemon/${species.id}" target="_blank">${species.name}</a></span> `;
+			buf += `<span class="col pokemonnamecol" style="white-space:nowrap"><a href="https://dex.pokemonshowdown.com/pokemon/${species.id}" target="_blank">${species.name}</a></span> `;
 			buf += '<span class="col typecol">';
 			if (species.types) {
 				for (const type of species.types) {
-					buf += `<img src="https://${Config.routes.client}/sprites/types/${type}.png" alt="${type}" height="14" width="32">`;
+					buf += `<img src="https://play.pokemonshowdown.com/sprites/types/${type}.png" alt="${type}" height="14" width="32">`;
 				}
 			}
 			buf += '</span> ';
 			if (gen >= 3) {
 				buf += '<span style="float:left;min-height:26px">';
-				if (species.abilities['1'] && (gen >= 4 || Dex.abilities.get(species.abilities['1']).gen === 3)) {
+				if (species.abilities['1'] && (gen >= 4 || this.dex.abilities.get(species.abilities['1']).gen === 3)) {
 					buf += `<span class="col twoabilitycol">${species.abilities['0']}<br />${species.abilities['1']}</span>`;
 				} else {
 					buf += `<span class="col abilitycol">${species.abilities['0']}</span>`;
@@ -3127,17 +3127,17 @@ export const Rulesets: import('../sim/dex-formats').FormatDataTable = {
 				let buf = '<li class="result">';
 				buf += `<span class="col numcol">${species.tier}</span> `;
 				buf += `<span class="col iconcol"><psicon pokemon="${species.id}"/></span> `;
-				buf += `<span class="col pokemonnamecol" style="white-space:nowrap"><a href="https://${Config.routes.dex}/pokemon/${species.id}" target="_blank">${species.name}</a></span> `;
+				buf += `<span class="col pokemonnamecol" style="white-space:nowrap"><a href="https://dex.pokemonshowdown.com/pokemon/${species.id}" target="_blank">${species.name}</a></span> `;
 				buf += '<span class="col typecol">';
 				if (species.types) {
 					for (const type of species.types) {
-						buf += `<img src="https://${Config.routes.client}/sprites/types/${type}.png" alt="${type}" height="14" width="32">`;
+						buf += `<img src="https://play.pokemonshowdown.com/sprites/types/${type}.png" alt="${type}" height="14" width="32">`;
 					}
 				}
 				buf += '</span> ';
 				if (gen >= 3) {
 					buf += '<span style="float:left;min-height:26px">';
-					if (species.abilities['1'] && (gen >= 4 || Dex.abilities.get(species.abilities['1']).gen === 3)) {
+					if (species.abilities['1'] && (gen >= 4 || this.dex.abilities.get(species.abilities['1']).gen === 3)) {
 						buf += `<span class="col twoabilitycol">${species.abilities['0']}<br />${species.abilities['1']}</span>`;
 					} else {
 						buf += `<span class="col abilitycol">${species.abilities['0']}</span>`;
