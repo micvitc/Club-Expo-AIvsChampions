@@ -44,7 +44,7 @@ body, .ps-body, .mainmenuwrapper, #mainmenu, .ps-room, .ps-room-light, .ps-room-
 }
 
 /* 3. Removing the "News" part */
-.news, .newslog, .news-box, #news, .newslog-box, div.news, div[class*="news"] {
+.news, .newslog, .news-box, #news, .newslog-box, div.news, div[class*="news"], [data-roomid="news"], .mini-window[data-roomid="news"] {
     display: none !important;
 }
 

@@ -234,9 +234,9 @@ preact.h("div",{"class":"maintabbarbottom"}),
 preact.h("div",{"class":"scrollable-part"},
 preact.h("img",{
 "class":"logo",
-src:"https://"+Config.routes.client+"/favicon-256.png",
-alt:"Pok\xE9mon Showdown! (beta)",
-width:"50",height:"50"}
+src:"/mic-logo.svg",
+alt:"MIC Showdown",
+width:"auto",height:"38"}
 ),
 preact.h("div",{"class":"tablist",role:"tablist"},
 preact.h("ul",null,
@@ -287,9 +287,9 @@ preact.h("ul",{"class":"maintabbar-left",style:{width:PS.leftPanelWidth+"px"},ro
 preact.h("li",null,
 preact.h("img",{
 "class":"logo",
-src:"https://"+Config.routes.client+"/favicon-256.png",
-alt:"Pok\xE9mon Showdown! (beta)",
-width:"48",height:"48"}
+src:"/mic-logo.svg",
+alt:"MIC Showdown",
+width:"auto",height:"38"}
 )
 ),
 PSHeader.renderRoomTab(PS.leftRoomList[0]),
