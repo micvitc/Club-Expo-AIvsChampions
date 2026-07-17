@@ -33,7 +33,7 @@ DEFAULT_CONFIG = {
     "username": "",
     "password": "",
     "server": "localhost",
-    "format": "gen9ou",
+    "format": "gen9ounotera",
     "num_battles": 1,
     "last_team": "",
     "saved_teams": {},
@@ -243,8 +243,8 @@ def startup_wizard() -> dict:
     srv_choice = ask("Server", "1" if cfg.get("server", "localhost") == "localhost" else "2")
     cfg["server"] = "localhost" if srv_choice != "2" else "showdown"
 
-    # Always use Gen 9 OU format
-    cfg["format"] = "gen9ou"
+    # Always use Gen 9 OU No Tera format
+    cfg["format"] = "gen9ounotera"
 
     section("TEAM SELECTION")
     team_str = team_manager_menu(cfg)
