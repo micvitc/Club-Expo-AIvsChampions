@@ -3,8 +3,8 @@
  * MIC Brand Theme, Modern Dark Mode, Custom Background, and News Removed.
  */
 
-/* 1. Replacing Logo with MIC Logo */
-h1.logo, .logo, .logo-title {
+/* 1. Replacing Big Main Menu Logo with MIC Logo */
+.mainmenu .logo, .logo-title {
     background-image: url('/mic-logo.svg') !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
@@ -15,15 +15,26 @@ h1.logo, .logo, .logo-title {
     overflow: hidden !important;
 }
 
-h1.logo a, .logo a {
+.mainmenu .logo a {
     display: block !important;
     height: 100% !important;
     width: 100% !important;
     background: transparent !important;
 }
 
-h1.logo img, .logo img {
+.mainmenu .logo img {
     display: none !important;
+}
+
+/* 2. Styling the Small Top Header Logo */
+.header .logo {
+    height: 38px !important;
+    width: auto !important;
+    margin-top: 5px !important;
+    margin-left: 10px !important;
+    display: inline-block !important;
+    background: none !important;
+    text-indent: 0 !important;
 }
 
 /* 2. Sleek Custom Gaming Background */
