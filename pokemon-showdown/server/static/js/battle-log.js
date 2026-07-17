@@ -1,4 +1,9 @@
-"use strict";/**
+"use strict";
+if (window.module && window.module.exports) {
+	Object.assign(window, window.module.exports);
+}
+delete window.module;
+/**
  * Battle log
  *
  * An exercise in minimalism! This is a dependency of the client, which
