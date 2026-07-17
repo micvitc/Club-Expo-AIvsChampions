@@ -721,13 +721,17 @@ this.update({success:true});
 return;
 }
 this.loggingIn=name;
-this.update(null);
+if(location.hostname==='localhost'||location.hostname==='127.0.0.1'){
+_this5.handleAssertion(name,'local');
+_this5.updateRegExp();
+}else{
 PSLoginServer.rawQuery(
 'getassertion',{userid:userid,challstr:this.challstr}
 ).then(function(res){
 _this5.handleAssertion(name,res);
 _this5.updateRegExp();
 });
+}
 };_proto3.
 changeNameWithPassword=function changeNameWithPassword(name,password){var _this6=this;var special=arguments.length>2&&arguments[2]!==undefined?arguments[2]:{needsPassword:true};
 this.loggingIn=name;
@@ -796,7 +800,7 @@ this.updateLogin({error:assertion.slice(2)});
 }else if(assertion.includes('\n')||!assertion){
 PS.alert("Something is interfering with our connection to the login server.");
 }else{
-PS.send("/trn "+name+",0,"+assertion);
+PS.send("/trn "+name+",0,"+(assertion==='local'?'':assertion));
 this.update({success:true});
 }
 };_proto3.
