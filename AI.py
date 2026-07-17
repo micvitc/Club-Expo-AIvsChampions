@@ -11,6 +11,25 @@ import sys
 import os
 import json
 import textwrap
+from pydantic import BaseModel, Field
+from typing import Optional, List, Any
+
+try:
+    from google import genai
+    from google.genai import types
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+
+class SingleBattleDecision(BaseModel):
+    reasoning_summary: str = Field(description="A concise, 1-2 sentence explanation of the move decision in English to post to the battle chat. E.g. 'Switching to Great Tusk to threaten the opponent's active Pokemon.'")
+    action_index: int = Field(description="The index of the chosen action from the AVAILABLE ACTIONS list.")
+
+class DoublesBattleDecision(BaseModel):
+    reasoning_summary: str = Field(description="A concise, 1-2 sentence explanation of the moves chosen for both slots to post in the battle chat.")
+    slot1_action_index: int = Field(description="The index of the chosen action for Slot 1 from the slot 1 available actions list.")
+    slot2_action_index: int = Field(description="The index of the chosen action for Slot 2 from the slot 2 available actions list.")
+
 from poke_env.player import Player
 from poke_env.player.battle_order import DoubleBattleOrder, SingleBattleOrder, PassBattleOrder
 from poke_env.battle.battle import Battle
@@ -681,6 +700,18 @@ def startup_wizard() -> dict:
     cfg["username"] = username
     cfg["password"] = password
 
+    # ── GEMINI API KEY ────────────────────────────────────────────────────────
+    section("GEMINI API CONFIG")
+    gemini_key = os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key") or ""
+    prompt_key = f"{gemini_key[:4]}...{gemini_key[-4:]}" if len(gemini_key) > 8 else ""
+    user_key = ask(f"Gemini API Key {f'({prompt_key})' if prompt_key else ''}", "")
+    if user_key:
+        cfg["gemini_api_key"] = user_key
+        os.environ["GEMINI_API_KEY"] = user_key
+    elif gemini_key:
+        cfg["gemini_api_key"] = gemini_key
+        os.environ["GEMINI_API_KEY"] = gemini_key
+
     # ── SERVER ────────────────────────────────────────────────────────────────
     section("SERVER")
     print(f"  {C.BOLD}[1]{C.RESET} localhost  (local Showdown instance)")
@@ -737,6 +768,8 @@ def startup_wizard() -> dict:
     print(f"  Battles   : {C.CYAN}{cfg['num_battles']}{C.RESET}")
     first_mon = team_str.strip().split("\n")[0]
     print(f"  Team lead : {C.CYAN}{first_mon}{C.RESET}")
+    gemini_status = f"{C.GREEN}Configured{C.RESET}" if os.environ.get("GEMINI_API_KEY") else f"{C.YELLOW}Not Configured (Manual Fallback){C.RESET}"
+    print(f"  Gemini API: {gemini_status}")
 
     confirm = ask(f"\n{C.GREEN}Start? (y/n)", "y")
     if confirm.lower() != "y":
@@ -754,6 +787,55 @@ def startup_wizard() -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class PokémonAssistant(Player):
+
+    def __init__(self, *args, **kwargs):
+        self.gemini_api_key = kwargs.pop("gemini_api_key", None)
+        super().__init__(*args, **kwargs)
+        if self.gemini_api_key:
+            os.environ["GEMINI_API_KEY"] = self.gemini_api_key
+        
+        self.genai_client = None
+        if GEMINI_AVAILABLE and os.environ.get("GEMINI_API_KEY"):
+            try:
+                self.genai_client = genai.Client()
+            except Exception as e:
+                print(f"⚠️  Could not initialize Gemini Client: {e}")
+
+    async def get_gemini_decision(self, prompt: str, schema) -> Any:
+        if not self.genai_client:
+            if GEMINI_AVAILABLE and os.environ.get("GEMINI_API_KEY"):
+                try:
+                    self.genai_client = genai.Client()
+                except Exception as e:
+                    print(f"\n❌  Gemini Client Error: {e}")
+                    return None
+            else:
+                return None
+        
+        system_instruction = "You are a Grandmaster-level Competitive Pokémon Player."
+        try:
+            with open("prompt.txt") as f:
+                system_instruction = f.read()
+        except Exception:
+            pass
+
+        try:
+            print("\n🤖  Querying Gemini API for decision...")
+            response = self.genai_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=schema,
+                    temperature=0.1,
+                ),
+            )
+            data = json.loads(response.text)
+            return data
+        except Exception as e:
+            print(f"\n❌  Gemini API Request failed: {e}")
+            return None
 
     # ── TEAM PREVIEW ──────────────────────────────────────────────────────────
     async def teampreview(self, battle) -> str:
@@ -841,18 +923,63 @@ class PokémonAssistant(Player):
         else:
             print("\n⚠️   Clipboard unavailable. Copy the prompt above manually.")
 
-        print("\n📋  QUICK REFERENCE")
-        print("  Attacks:")
-        for i, m in enumerate(battle.available_moves, 1):
-            tera_note = "  ← can TERA" if battle.can_tera else ""
-            print(f"    move {i}  →  {m.id.upper()}{tera_note}")
-        print("  Switches:")
-        for i, s in enumerate(battle.available_switches, 1):
-            print(f"    switch {i}  →  {s.species} ({s.current_hp_fraction*100:.0f}%)")
+        # Construct AVAILABLE ACTIONS list
+        actions = []
+        for idx, move in enumerate(battle.available_moves):
+            actions.append({
+                "type": "move",
+                "index": idx,
+                "description": f"Move: {move.id.upper()}"
+            })
         if battle.can_tera:
-            print("\n  ✨  TERASTALIZATION AVAILABLE  →  prefix with 'tera'")
-            print("      e.g.  'tera move 1'  or  'tera 1'")
+            for idx, move in enumerate(battle.available_moves):
+                actions.append({
+                    "type": "tera",
+                    "index": idx,
+                    "description": f"Tera Move: {move.id.upper()} (Terastallize)"
+                })
+        for idx, switch in enumerate(battle.available_switches):
+            actions.append({
+                "type": "switch",
+                "index": idx,
+                "description": f"Switch to {switch.species} ({switch.current_hp_fraction*100:.0f}% HP)"
+            })
 
+        print("\n📋  AVAILABLE ACTIONS:")
+        for i, a in enumerate(actions, 1):
+            print(f"    [{i}]  →  {a['description']}")
+
+        # Query Gemini if key is set
+        if os.environ.get("GEMINI_API_KEY"):
+            actions_str = "AVAILABLE ACTIONS:\n" + "\n".join(
+                f"  [{i+1}] {a['description']}" for i, a in enumerate(actions)
+            )
+            full_prompt = f"{prompt}\n\n{actions_str}\n\nYou MUST select one action index from the AVAILABLE ACTIONS list. Respond with the schema."
+            
+            decision = await self.get_gemini_decision(full_prompt, SingleBattleDecision)
+            if decision:
+                reason = decision.get("reasoning_summary")
+                action_idx = decision.get("action_index", 1) - 1
+                
+                if 0 <= action_idx < len(actions):
+                    chosen_action = actions[action_idx]
+                    print(f"\n🤖  {C.GREEN}{C.BOLD}Gemini Decision:{C.RESET} {chosen_action['description']}")
+                    print(f"💬  {C.YELLOW}Reasoning:{C.RESET} {reason}")
+                    
+                    if reason:
+                        reason_clean = reason.replace("\n", " ").strip()
+                        await self.ps_client.send_message(f"🤖 assistant: {reason_clean}", room=battle.battle_tag)
+                    
+                    if chosen_action["type"] == "tera":
+                        return self.create_order(battle.available_moves[chosen_action["index"]], terastallize=True)
+                    elif chosen_action["type"] == "move":
+                        return self.create_order(battle.available_moves[chosen_action["index"]])
+                    elif chosen_action["type"] == "switch":
+                        return self.create_order(battle.available_switches[chosen_action["index"]])
+                else:
+                    print(f"\n❌  Gemini selected invalid action index: {action_idx + 1}")
+
+        # Fallback to manual selection
         print("\nCommands:  move <n>  |  switch <n>  |  tera [move] <n>  |  c (re-copy prompt)")
 
         while True:
@@ -914,12 +1041,69 @@ class PokémonAssistant(Player):
 
         valid_orders = battle.valid_orders
         final_orders = [None, None]
+        slot_actions = [[], []]
 
         for slot in range(2):
             active_mon = battle.active_pokemon[slot]
             slot_orders = valid_orders[slot]
-
             non_pass_orders = [o for o in slot_orders if not isinstance(o, PassBattleOrder)]
+            
+            for idx, order in enumerate(non_pass_orders):
+                desc = format_order_for_display(order, battle)
+                slot_actions[slot].append({
+                    "index": idx,
+                    "description": desc,
+                    "order": order
+                })
+
+        # Query Gemini if key is set
+        if os.environ.get("GEMINI_API_KEY"):
+            actions_str = ""
+            for slot in range(2):
+                active_mon = battle.active_pokemon[slot]
+                mon_name = active_mon.species if active_mon else f"Slot {slot+1}"
+                actions_str += f"\nAVAILABLE ACTIONS FOR {mon_name} (Slot {slot+1}):\n"
+                if not slot_actions[slot]:
+                    actions_str += "  [1] PASS (No action available)\n"
+                else:
+                    for i, a in enumerate(slot_actions[slot]):
+                        actions_str += f"  [{i+1}] {a['description']}\n"
+            
+            full_prompt = f"{prompt}\n\n{actions_str}\n\nYou MUST select one action index for Slot 1 and one action index for Slot 2 from the lists above. Respond with the schema."
+            
+            decision = await self.get_gemini_decision(full_prompt, DoublesBattleDecision)
+            if decision:
+                reason = decision.get("reasoning_summary")
+                print(f"\n🤖  {C.GREEN}{C.BOLD}Gemini Doubles Decision:{C.RESET}")
+                print(f"💬  {C.YELLOW}Reasoning:{C.RESET} {reason}")
+                
+                if reason:
+                    reason_clean = reason.replace("\n", " ").strip()
+                    await self.ps_client.send_message(f"🤖 assistant: {reason_clean}", room=battle.battle_tag)
+                
+                for slot in range(2):
+                    active_mon = battle.active_pokemon[slot]
+                    if not slot_actions[slot]:
+                        final_orders[slot] = PassBattleOrder()
+                        continue
+                    
+                    key = f"slot{slot+1}_action_index"
+                    action_idx = decision.get(key, 1) - 1
+                    
+                    if 0 <= action_idx < len(slot_actions[slot]):
+                        chosen = slot_actions[slot][action_idx]
+                        print(f"  Slot {slot+1} action: {chosen['description']}")
+                        final_orders[slot] = chosen["order"]
+                    else:
+                        print(f"  Slot {slot+1} action index invalid ({action_idx+1}), using first option.")
+                        final_orders[slot] = slot_actions[slot][0]["order"]
+                
+                return DoubleBattleOrder(first_order=final_orders[0] or PassBattleOrder(), second_order=final_orders[1] or PassBattleOrder())
+
+        # Fallback to manual selection
+        for slot in range(2):
+            active_mon = battle.active_pokemon[slot]
+            non_pass_orders = [a["order"] for a in slot_actions[slot]]
 
             if not non_pass_orders:
                 final_orders[slot] = PassBattleOrder()
@@ -927,9 +1111,8 @@ class PokémonAssistant(Player):
                 continue
 
             print(f"\n📋  AVAILABLE ACTIONS FOR SLOT {slot + 1} ({active_mon.species if active_mon else 'Empty'}):")
-            for idx, order in enumerate(non_pass_orders, 1):
-                desc = format_order_for_display(order, battle)
-                print(f"    [{idx}]  →  {desc}")
+            for idx, action in enumerate(slot_actions[slot], 1):
+                print(f"    [{idx}]  →  {action['description']}")
 
             print(f"Commands for Slot {slot + 1}: Enter choice number (1-{len(non_pass_orders)}) | 'c' to copy prompt")
 
@@ -994,6 +1177,7 @@ async def main():
         battle_format=fmt,
         team=teambuilder,
         server_configuration=server_cfg,
+        gemini_api_key=cfg.get("gemini_api_key"),
     )
 
     print(f"\n{C.GREEN}{C.BOLD}🤖  Bot '{username}' is online.{C.RESET}")

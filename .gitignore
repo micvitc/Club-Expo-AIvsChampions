@@ -107,3 +107,7 @@ pip-selfcheck.json
 .vscode/
 *.swp
 *.swo
+
+# Local build repositories
+pokemon-showdown-client/
+
