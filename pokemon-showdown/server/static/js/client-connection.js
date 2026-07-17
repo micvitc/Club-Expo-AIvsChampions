@@ -284,6 +284,7 @@ if(location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.pr
 
 (_Config=Config).server||(_Config.server=Config.defaultserver);
 Object.assign(PS.server, Config.defaultserver);
+PS.user.initializing = false;
 return;
 }
 

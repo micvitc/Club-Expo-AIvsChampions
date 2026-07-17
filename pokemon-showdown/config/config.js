@@ -775,3 +775,4 @@ exports.grouplist = [
 ];
 
 exports.repl = false;
+exports.noguestsecurity = true;
