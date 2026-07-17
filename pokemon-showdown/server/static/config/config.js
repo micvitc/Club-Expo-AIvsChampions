@@ -24,7 +24,9 @@ Config.defaultserver = {
 	port: 8000,
 	httpport: 8000,
 	altport: 8000,
-	registered: false
+	registered: false,
+	protocol: 'http',
+	prefix: '/showdown'
 };
 
 Config.roomsFirstOpenScript = function () {
