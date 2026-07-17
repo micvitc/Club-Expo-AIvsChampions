@@ -283,6 +283,7 @@ return;
 if(location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.protocol+"//"+location.hostname===PSStorage.origin){var _Config;
 
 (_Config=Config).server||(_Config.server=Config.defaultserver);
+Object.assign(PS.server, Config.defaultserver);
 return;
 }
 
