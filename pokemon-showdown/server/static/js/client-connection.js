@@ -279,7 +279,8 @@ return this.loaded;
 }
 if(Config.testclient){
 return;
-}else if(location.protocol+"//"+location.hostname===PSStorage.origin){var _Config;
+}
+if(location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.protocol+"//"+location.hostname===PSStorage.origin){var _Config;
 
 (_Config=Config).server||(_Config.server=Config.defaultserver);
 return;
