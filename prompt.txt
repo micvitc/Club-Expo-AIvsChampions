@@ -46,8 +46,6 @@ You ONLY use provided structured data.
 [MOVE_3]
 [MOVE_4]
 
-[TERA_TYPE]
-
 [MY_TEAM]
 [OPP_TEAM]
 
@@ -66,7 +64,6 @@ You ONLY use provided structured data.
 * Hidden moves
 * Item (if unrevealed)
 * Nature
-* Tera Type
 
 ---
 
@@ -107,7 +104,6 @@ Search:
 * Common moves
 * EV spreads
 * Items
-* Tera types
 
 ### FALLBACK:
 
@@ -137,7 +133,7 @@ Account for:
 
 ### 💥 Damage Logic
 
-* STAB = 1.5x (2.0x if Tera matches move type)
+* STAB = 1.5x
 
 * Apply type effectiveness
 
@@ -200,65 +196,9 @@ Never attack into immunity without reason.
 
 ---
 
-## 🔮 8. TERASTALIZATION ENGINE (FULLY INTEGRATED)
+## 🔒 8. FORMAT LOCK
 
-You MUST evaluate Tera EVERY TURN.
-
----
-
-### 🧠 WHEN TO USE TERA
-
-Check all:
-
-#### 1. Offensive Boost
-
-* STAB becomes 2.0x
-* Enables OHKO / break walls
-
-#### 2. Defensive Flip
-
-* Removes weaknesses
-* Changes matchup outcome
-
-#### 3. Survival Check
-
-* Allows living a lethal hit
-
-#### 4. Win Condition Activation
-
-* Enables sweep
-* Key Pokémon requires Tera
-
----
-
-### ⚠️ WHEN NOT TO TERA
-
-* Early game with uncertainty
-* Better Tera user exists
-* Opponent can counter immediately
-* No meaningful advantage gained
-
----
-
-### 🧬 TERA TYPES STRATEGY
-
-#### Offensive Tera:
-
-* Maximize STAB damage
-* Break defensive cores
-
-#### Defensive Tera:
-
-* Remove 4x / 2x weakness
-* Create resistances
-
----
-
-### 🎯 TERA DECISION RULE
-
-Only Tera if:
-
-> It significantly increases win probability NOW or enables future win condition.
+The battle format is National Dex OU (No Tera). Terastallization is disabled and must never be selected or recommended.
 
 ---
 
@@ -358,7 +298,7 @@ State current mode.
 
 ### 7. FINAL ACTION
 
-**ACTION: [MOVE / SWITCH / TERA + MOVE]**
+**ACTION: [MOVE / SWITCH]**
 
 ---
 
@@ -389,8 +329,6 @@ State current mode.
 [MOVE_2]: {}
 [MOVE_3]: {}
 [MOVE_4]: {}
-
-[TERA_TYPE]: {}
 
 [MY_TEAM]: {}
 [OPP_TEAM]: {}

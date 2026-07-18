@@ -2331,7 +2331,12 @@ this.renameRoom(room,args[2]);
 this.update();
 continue;
 }case'nametaken':{
+if(args[1]==='User'||args[1]==='user'){
+var randomNum=Math.floor(Math.random()*9000)+1000;
+PS.send('/trn User_'+randomNum);
+}else{
 PS.join('login',{args:{error:"Someone is already using the name "+args[1]+"."}});
+}
 break;
 }case'chat':case'c':{
 if(args[1]==='~'&&(args[2]+' ').startsWith('/warn ')){

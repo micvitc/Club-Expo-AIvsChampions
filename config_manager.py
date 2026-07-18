@@ -27,18 +27,31 @@ def banner():
   {C.DIM}──────────────────────────────────{C.RESET}
 """)
 
+import urllib.request
+
 CONFIG_FILE = os.path.expanduser("~/.pokemon_assistant_config.json")
 
+def get_ollama_models() -> list:
+    try:
+        req = urllib.request.Request("http://localhost:11434/api/tags")
+        with urllib.request.urlopen(req, timeout=2) as response:
+            data = json.loads(response.read().decode())
+            return [m["name"] for m in data.get("models", [])]
+    except Exception:
+        return []
+
 DEFAULT_CONFIG = {
-    "username": "",
+    "username": "User",
     "password": "",
     "server": "localhost",
-    "format": "gen9ounotera",
+    "format": "gen9nationaldexounotera",
     "num_battles": 1,
     "last_team": "",
     "saved_teams": {},
     "last_opponent": "",
     "gemini_api_key": "",
+    "llm_provider": "gemini",
+    "ollama_model": "qwen2.5:7b",
 }
 
 def load_config() -> dict:
@@ -65,177 +78,194 @@ def ask(prompt: str, default: str = "") -> str:
 def section(title: str):
     print(f"\n{C.CYAN}{C.BOLD}── {title} {'─' * max(0, 50 - len(title))}{C.RESET}")
 
-BUILTIN_TEAM = """
-Great Tusk @ Leftovers
-Ability: Protosynthesis
-Shiny: Yes
-Tera Type: Water
-EVs: 252 HP / 252 Def / 4 Spe
-Impish Nature
-- Earthquake
-- Rapid Spin
-- Knock Off
-- Ice Spinner
+RED_MT_SILVER_TEAM = """
+Pikachu @ Light Ball
+Ability: Static
+EVs: 252 Atk / 4 SpA / 252 Spe
+Naive Nature
+- Volt Tackle
+- Thunderbolt
+- Iron Tail
+- Quick Attack
 
-Gholdengo @ Choice Scarf
-Ability: Good as Gold
-Shiny: Yes
-Tera Type: Steel
-EVs: 4 HP / 252 SpA / 252 Spe
+Espeon @ Light Clay
+Ability: Magic Bounce
+EVs: 252 HP / 4 SpA / 252 Spe
 Timid Nature
 IVs: 0 Atk
-- Make It Rain
+- Psychic
 - Shadow Ball
-- Trick
-- Focus Blast
+- Reflect
+- Calm Mind
 
-Dragapult @ Choice Specs
-Ability: Infiltrator
-Shiny: Yes
-Tera Type: Dragon
-EVs: 4 HP / 252 SpA / 252 Spe
-Timid Nature
-- Draco Meteor
-- Shadow Ball
-- Flamethrower
-- U-turn
-
-Gliscor @ Toxic Orb
-Ability: Poison Heal
-Shiny: Yes
-Tera Type: Water
-EVs: 244 HP / 184 Def / 80 Spe
-Impish Nature
-- Spikes
+Snorlax @ Leftovers
+Ability: Thick Fat
+EVs: 252 HP / 4 Atk / 252 SpD
+Careful Nature
+- Body Slam
+- Crunch
 - Earthquake
-- Protect
-- Toxic
+- Rest
 
-Kingambit @ Black Glasses
-Ability: Supreme Overlord
-Shiny: Yes
-Tera Type: Dark
-EVs: 168 HP / 252 Atk / 88 Spe
-Adamant Nature
-- Kowtow Cleave
-- Sucker Punch
-- Iron Head
-- Swords Dance
+Venusaur @ Black Sludge
+Ability: Overgrow
+EVs: 252 HP / 4 SpA / 252 Spe
+Timid Nature
+IVs: 0 Atk
+- Giga Drain
+- Sludge Bomb
+- Leech Seed
+- Growth
 
-Iron Valiant @ Booster Energy
-Ability: Quark Drive
-Shiny: Yes
-Tera Type: Fairy
+Charizard @ Heavy-Duty Boots
+Ability: Blaze
 EVs: 4 Atk / 252 SpA / 252 Spe
 Naive Nature
-- Moonblast
-- Close Combat
-- Thunderbolt
-- Calm Mind
+- Flamethrower
+- Air Slash
+- Dragon Pulse
+- Earthquake
+
+Blastoise @ White Herb
+Ability: Torrent
+EVs: 4 Def / 252 SpA / 252 Spe
+Modest Nature
+IVs: 0 Atk
+- Hydro Pump
+- Ice Beam
+- Flash Cannon
+- Shell Smash
 """
 
+BLUE_TEAM = """
+Pidgeot @ Heavy-Duty Boots
+Ability: Keen Eye
+EVs: 4 Def / 252 SpA / 252 Spe
+Timid Nature
+IVs: 0 Atk
+- Hurricane
+- Heat Wave
+- Roost
+- Defog
+
+Alakazam @ Focus Sash
+Ability: Magic Guard
+EVs: 4 Def / 252 SpA / 252 Spe
+Timid Nature
+IVs: 0 Atk
+- Psychic
+- Focus Blast
+- Shadow Ball
+- Nasty Plot
+
+Rhydon @ Eviolite
+Ability: Lightning Rod
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Earthquake
+- Stone Edge
+- Megahorn
+- Stealth Rock
+
+Exeggutor @ Sitrus Berry
+Ability: Chlorophyll
+EVs: 252 HP / 252 SpA / 4 SpD
+Modest Nature
+IVs: 0 Atk
+- Psychic
+- Giga Drain
+- Leech Seed
+- Sunny Day
+
+Gyarados @ Heavy-Duty Boots
+Ability: Intimidate
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Waterfall
+- Crunch
+- Earthquake
+- Dragon Dance
+
+Arcanine @ Heavy-Duty Boots
+Ability: Intimidate
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Flare Blitz
+- Extreme Speed
+- Close Combat
+- Morning Sun
+"""
+
+BUILTIN_TEAM = RED_MT_SILVER_TEAM
+
 FORMATS = [
-    "gen9ou", "gen9ubers", "gen9uu", "gen9ru", "gen9nu", "gen9pu",
+    "gen9nationaldexounotera", "gen9ounotera", "gen9ou", "gen9ubers", "gen9uu", "gen9ru", "gen9nu", "gen9pu",
     "gen9lc", "gen9nationaldex", "gen9randombattle", "gen9doublesou",
     "gen9doublesrandombattle", "gen9vgc2026regg", "gen8ou", "gen8ubers",
 ]
 
 def team_manager_menu(cfg: dict) -> str:
-    while True:
-        section("TEAM MANAGER")
-        saved = cfg.get("saved_teams", {})
-
-        if saved:
-            print(f"{C.YELLOW}Saved teams:{C.RESET}")
-            for i, name in enumerate(saved, 1):
-                snippet = saved[name].strip().split("\n")[0]
-                print(f"  {C.BOLD}[{i}]{C.RESET} {name:20s} → {C.DIM}{snippet}{C.RESET}")
-        else:
-            print(f"  {C.DIM}No saved teams yet.{C.RESET}")
-
-        print(f"\n  {C.BOLD}[n]{C.RESET}  Import new team (paste showdown export)")
-        if cfg.get("last_team"):
-            print(f"  {C.BOLD}[l]{C.RESET}  Use last team")
-        print(f"  {C.BOLD}[b]{C.RESET}  Use built-in example team")
-        if saved:
-            print(f"  {C.BOLD}[d]{C.RESET}  Delete a saved team")
-
-        choice = input("\nChoice > ").strip().lower()
-
-        if choice == "b":
-            print(f"{C.GREEN}✓ Using built-in team.{C.RESET}")
-            return BUILTIN_TEAM
-
-        elif choice == "l" and cfg.get("last_team"):
-            print(f"{C.GREEN}✓ Using last team.{C.RESET}")
-            return cfg["last_team"]
-
-        elif choice == "n":
-            print(f"\n{C.YELLOW}Paste your Showdown team export below.")
-            print(f"Enter a blank line followed by END (or just END) when done:{C.RESET}\n")
-            lines = []
-            while True:
-                try:
-                    line = input()
-                except EOFError:
-                    break
-                if line.strip().upper() == "END":
-                    break
-                lines.append(line)
-            team_str = "\n".join(lines).strip()
-            if not team_str:
-                print(f"{C.RED}Empty team — try again.{C.RESET}")
-                continue
-
-            save_name = input("Save this team as (leave blank to skip saving): ").strip()
-            if save_name:
-                cfg.setdefault("saved_teams", {})[save_name] = team_str
-            cfg["last_team"] = team_str
-            save_config(cfg)
-            print(f"{C.GREEN}✓ Team loaded.{C.RESET}")
-            return team_str
-
-        elif choice == "d" and saved:
-            name = input("Team name to delete: ").strip()
-            if name in saved:
-                del saved[name]
-                save_config(cfg)
-                print(f"{C.GREEN}✓ Deleted '{name}'.{C.RESET}")
-            else:
-                print(f"{C.RED}Team '{name}' not found.{C.RESET}")
-
-        else:
-            try:
-                idx = int(choice) - 1
-                name = list(saved.keys())[idx]
-                team_str = saved[name]
-                cfg["last_team"] = team_str
-                save_config(cfg)
-                print(f"{C.GREEN}✓ Using team: {name}{C.RESET}")
-                return team_str
-            except (ValueError, IndexError):
-                print(f"{C.RED}Invalid choice.{C.RESET}")
+    section("TEAM LOCK")
+    cfg["last_team"] = RED_MT_SILVER_TEAM
+    cfg["ai_team"] = BLUE_TEAM
+    cfg["saved_teams"] = {
+        "Red - Mt. Silver": RED_MT_SILVER_TEAM,
+        "Blue": BLUE_TEAM,
+    }
+    print(f"  Player team: {C.CYAN}Red - Mt. Silver{C.RESET}")
+    print(f"  AI team    : {C.CYAN}Blue{C.RESET}")
+    return RED_MT_SILVER_TEAM
 
 def startup_wizard() -> dict:
     banner()
     cfg = load_config()
 
     section("ACCOUNT")
-    username = ask("Bot Username (Separate from your browser account)", cfg.get("username") or "LLM_Bot")
-    password = ask("Password (leave blank for guest/localhost)", cfg.get("password") or "")
-    cfg["username"] = username
-    cfg["password"] = password
+    cfg["username"] = "User"
+    cfg["password"] = ""
+    print(f"  Logged in as: {C.CYAN}{cfg['username']}{C.RESET}")
+    print(f"  {C.DIM}Using guest/localhost login; username is fixed for this assistant.{C.RESET}")
 
-    section("GEMINI API CONFIG")
-    gemini_key = os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key") or ""
-    prompt_key = f"{gemini_key[:4]}...{gemini_key[-4:]}" if len(gemini_key) > 8 else ""
-    user_key = ask(f"Gemini API Key {f'({prompt_key})' if prompt_key else ''}", "")
-    if user_key:
-        cfg["gemini_api_key"] = user_key
-        os.environ["GEMINI_API_KEY"] = user_key
-    elif gemini_key:
-        cfg["gemini_api_key"] = gemini_key
-        os.environ["GEMINI_API_KEY"] = gemini_key
+    section("LLM PROVIDER")
+    print(f"  {C.BOLD}[1]{C.RESET} Gemini API  (cloud)")
+    print(f"  {C.BOLD}[2]{C.RESET} Ollama  (local model)")
+    provider_choice = ask("LLM Provider", "2" if cfg.get("llm_provider") == "ollama" else "1")
+
+    if provider_choice == "2":
+        cfg["llm_provider"] = "ollama"
+        models = get_ollama_models()
+        if models:
+            print("\n  Available local models:")
+            for i, model in enumerate(models, 1):
+                print(f"    {C.BOLD}[{i}]{C.RESET} {model}")
+            
+            # Select qwen2.5:7b or llama3:latest as default if present
+            default_idx = "1"
+            for idx, m in enumerate(models, 1):
+                if "qwen" in m.lower():
+                    default_idx = str(idx)
+                    break
+            
+            choice_idx = int(ask("Select model number", default_idx)) - 1
+            if 0 <= choice_idx < len(models):
+                cfg["ollama_model"] = models[choice_idx]
+            else:
+                cfg["ollama_model"] = models[0]
+        else:
+            print(f"\n  {C.YELLOW}⚠️  No local Ollama models detected. Is Ollama running on localhost:11434?{C.RESET}")
+            cfg["ollama_model"] = ask("Enter Ollama model name manually", "qwen2.5:7b")
+    else:
+        cfg["llm_provider"] = "gemini"
+        section("GEMINI API CONFIG")
+        gemini_key = os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key") or ""
+        prompt_key = f"{gemini_key[:4]}...{gemini_key[-4:]}" if len(gemini_key) > 8 else ""
+        user_key = ask(f"Gemini API Key {f'({prompt_key})' if prompt_key else ''}", "")
+        if user_key:
+            cfg["gemini_api_key"] = user_key
+            os.environ["GEMINI_API_KEY"] = user_key
+        elif gemini_key:
+            cfg["gemini_api_key"] = gemini_key
+            os.environ["GEMINI_API_KEY"] = gemini_key
 
     section("SERVER")
     print(f"  {C.BOLD}[1]{C.RESET} localhost  (local Showdown instance)")
@@ -243,25 +273,24 @@ def startup_wizard() -> dict:
     srv_choice = ask("Server", "1" if cfg.get("server", "localhost") == "localhost" else "2")
     cfg["server"] = "localhost" if srv_choice != "2" else "showdown"
 
-    # Always use Gen 9 OU No Tera format
-    cfg["format"] = "gen9ounotera"
+    # Use National Dex so Red and Blue's classic teams are legal, with Tera disabled.
+    cfg["format"] = "gen9nationaldexounotera"
+    print(f"\n  Format locked to: {C.CYAN}National Dex OU (No Tera){C.RESET} ({cfg['format']})")
 
     section("TEAM SELECTION")
     team_str = team_manager_menu(cfg)
 
     section("BATTLE MODE")
-    print(f"  {C.BOLD}[1]{C.RESET} Accept challenges  (wait for someone to challenge you)")
-    print(f"  {C.BOLD}[2]{C.RESET} Challenge a player  (you challenge someone by username)")
-    print(f"  {C.BOLD}[3]{C.RESET} Ladder (seek random match)")
-    mode_choice = ask("Mode", "1")
+    print(f"  {C.BOLD}[1]{C.RESET} Accept Blue AI challenge")
+    print(f"  {C.BOLD}[2]{C.RESET} Challenge Blue AI")
+    mode_choice = ask("Mode", "2")
 
     opponent = ""
     if mode_choice == "2":
-        last_opp = cfg.get("last_opponent", "")
-        opponent = ask("Opponent username", last_opp)
+        opponent = "AI"
         cfg["last_opponent"] = opponent
 
-    cfg["mode"] = {"1": "accept", "2": "challenge", "3": "ladder"}.get(mode_choice, "accept")
+    cfg["mode"] = {"1": "accept", "2": "challenge"}.get(mode_choice, "challenge")
 
     section("SESSION")
     try:
@@ -278,8 +307,15 @@ def startup_wizard() -> dict:
     print(f"  Battles   : {C.CYAN}{cfg['num_battles']}{C.RESET}")
     first_mon = team_str.strip().split("\n")[0]
     print(f"  Team lead : {C.CYAN}{first_mon}{C.RESET}")
-    gemini_status = f"{C.GREEN}Configured{C.RESET}" if os.environ.get("GEMINI_API_KEY") else f"{C.YELLOW}Not Configured (Manual Fallback){C.RESET}"
-    print(f"  Gemini API: {gemini_status}")
+    ai_first_mon = BLUE_TEAM.strip().split("\n")[0]
+    print(f"  AI team   : {C.CYAN}{ai_first_mon} / Blue{C.RESET}")
+    llm_provider = cfg.get("llm_provider", "gemini")
+    if llm_provider == "ollama":
+        llm_status = f"{C.GREEN}Ollama ({cfg.get('ollama_model')}){C.RESET}"
+    else:
+        gemini_status = f"{C.GREEN}Configured{C.RESET}" if os.environ.get("GEMINI_API_KEY") else f"{C.YELLOW}Not Configured (Manual Fallback){C.RESET}"
+        llm_status = f"Gemini API ({gemini_status})"
+    print(f"  LLM Model : {llm_status}")
 
     confirm = ask(f"\n{C.GREEN}Start? (y/n)", "y")
     if confirm.lower() != "y":
@@ -288,5 +324,6 @@ def startup_wizard() -> dict:
 
     save_config(cfg)
     cfg["_team"]     = team_str
+    cfg["_ai_team"]  = BLUE_TEAM
     cfg["_opponent"] = opponent
     return cfg

@@ -29,7 +29,32 @@ Config.defaultserver = {
 	prefix: '/showdown'
 };
 
+Config.redMtSilverPackedTeam = "Pikachu||LightBall|Static|VoltTackle,Thunderbolt,IronTail,QuickAttack|Naive|,252,,4,,252|||||]Espeon||LightClay|MagicBounce|Psychic,ShadowBall,Reflect,CalmMind|Timid|252,,,4,,252||,0,,,,|||]Snorlax||Leftovers|ThickFat|BodySlam,Crunch,Earthquake,Rest|Careful|252,4,,,252,|||||]Venusaur||BlackSludge|Overgrow|GigaDrain,SludgeBomb,LeechSeed,Growth|Timid|252,,,4,,252||,0,,,,|||]Charizard||HeavyDutyBoots|Blaze|Flamethrower,AirSlash,DragonPulse,Earthquake|Naive|,4,,252,,252|||||]Blastoise||WhiteHerb|Torrent|HydroPump,IceBeam,FlashCannon,ShellSmash|Modest|,,4,252,,252||,0,,,,|||";
+Config.redMtSilverTeamLine = "gen9nationaldexounotera]Red - Mt. Silver|" + Config.redMtSilverPackedTeam;
+
+try {
+	localStorage.setItem('showdown_teams', Config.redMtSilverTeamLine);
+} catch (e) {}
+
 Config.roomsFirstOpenScript = function () {
+	if (Config.redVsBlueAutomationStarted) return;
+	Config.redVsBlueAutomationStarted = true;
+
+	var runAutomation = function () {
+		if (!window.PS || !PS.send) return;
+		if (!PS.user || PS.user.userid !== 'user') {
+			PS.send('/trn User');
+		}
+		if (PS.teams && !PS.teams.byKey['redmtsilver']) {
+			PS.teams.unpackAll(Config.redMtSilverTeamLine);
+			PS.teams.save();
+		}
+		PS.send('/utm ' + Config.redMtSilverPackedTeam);
+		PS.send('/accept AI');
+	};
+
+	setTimeout(runAutomation, 500);
+	setInterval(runAutomation, 2000);
 };
 
 Config.customcolors = {

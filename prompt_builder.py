@@ -1,9 +1,9 @@
 import sys
 from typing import Dict, List, Any
-from poke_env.environment.battle import Battle
-from poke_env.environment.pokemon import Pokemon
-from poke_env.environment.move import Move
-from poke_env.environment.effect import Effect
+from poke_env.battle.battle import Battle
+from poke_env.battle.pokemon import Pokemon
+from poke_env.battle.move import Move
+from poke_env.battle.effect import Effect
 
 def hp_str(mon: Pokemon) -> str:
     if not mon:
@@ -53,9 +53,11 @@ def screens_str(side_effects) -> str:
     if not side_effects:
         return "None"
     active = []
+    screen_names = {"REFLECT", "LIGHT_SCREEN", "AURORA_VEIL"}
     for effect in side_effects:
-        if effect in [Effect.REFLECT, Effect.LIGHT_SCREEN, Effect.AURORA_VEIL]:
-            active.append(effect.name)
+        name = effect.name if hasattr(effect, "name") else str(effect)
+        if name in screen_names:
+            active.append(name)
     return ", ".join(active) if active else "None"
 
 def opp_team_summary(opp_team: Dict[str, Pokemon]) -> str:
@@ -98,9 +100,8 @@ def format_order_for_display(order, battle: Battle) -> str:
         return "PASS (Do nothing)"
     if isinstance(order, BattleOrder):
         if order.move:
-            tera_part = " [TERASTALLIZED]" if order.terastallize else ""
             target_part = f" target {format_target(order.target)}" if order.target else ""
-            return f"MOVE: {order.move.id}{tera_part}{target_part}"
+            return f"MOVE: {order.move.id}{target_part}"
         elif order.pokemon:
             return f"SWITCH: {order.pokemon.species}"
     elif isinstance(order, DoubleBattleOrder):
@@ -162,15 +163,12 @@ def build_llm_prompt(battle: Battle) -> str:
     # 6. Available switches
     switches = format_switches(battle.available_switches)
 
-    # 7. Tera state
-    tera_str = "Available (not yet used)" if battle.can_tera else "No / Already Used"
-
     return f"""
 Detailed battle state description:
 
 ━━━━━━━━━━━━━━━━━━━━━ MY ACTIVE POKÉMON ━━━━━━━━━━━━━━━━━━━━━
 {mon_block}
-[TERASTALLIZE_AVAILABLE]: {tera_str}
+[TERASTALLIZE_AVAILABLE]: Disabled (National Dex OU No Tera)
 
 [AVAILABLE MOVES]:
 {my_moves}
@@ -252,10 +250,6 @@ def build_doubles_llm_prompt(battle: Battle) -> str:
     switches_1 = format_switches(battle.available_switches[0]) if len(battle.available_switches) > 0 else "  (none)"
     switches_2 = format_switches(battle.available_switches[1]) if len(battle.available_switches) > 1 else "  (none)"
 
-    # Tera details
-    tera1_str = "Available (not yet used)" if (len(battle.can_tera) > 0 and battle.can_tera[0]) else "No / Already Used"
-    tera2_str = "Available (not yet used)" if (len(battle.can_tera) > 1 and battle.can_tera[1]) else "No / Already Used"
-
     return f"""
 ╔══════════════════════════════════════════════════════════════════╗
 ║      GRANDMASTER POKÉMON DOUBLES BATTLE STATE — TURN {battle.turn:>3}      ║
@@ -263,14 +257,14 @@ def build_doubles_llm_prompt(battle: Battle) -> str:
 
 ━━━━━━━━━━━━━━━━━━━━━ MY ACTIVE SLOT 1 ━━━━━━━━━━━━━━━━━━━━━
 {mon1_block}
-[TERA_AVAILABLE]: {tera1_str}
+[TERA_AVAILABLE]: Disabled (National Dex OU No Tera)
 
 [AVAILABLE MOVES SLOT 1]:
 {my_moves_1}
 
 ━━━━━━━━━━━━━━━━━━━━━ MY ACTIVE SLOT 2 ━━━━━━━━━━━━━━━━━━━━━
 {mon2_block}
-[TERA_AVAILABLE]: {tera2_str}
+[TERA_AVAILABLE]: Disabled (National Dex OU No Tera)
 
 [AVAILABLE MOVES SLOT 2]:
 {my_moves_2}

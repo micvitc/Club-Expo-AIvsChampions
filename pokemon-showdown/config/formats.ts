@@ -13,5 +13,11 @@ export const Formats: import('../sim/dex-formats').FormatList = [
 		mod: 'gen9',
 		ruleset: ['Standard', 'Sleep Moves Clause', 'Terastal Clause'],
 		banlist: ['AG', 'Uber', 'Moody', 'Baton Pass', 'Last Respects', 'Shed Tail'],
+	},
+	{
+		name: "[Gen 9] National Dex OU (No Tera)",
+		mod: 'gen9',
+		ruleset: ['Standard NatDex', 'Terastal Clause'],
+		banlist: ['ND AG', 'ND Uber', 'Moody', 'Baton Pass', 'Last Respects', 'Shed Tail'],
 	}
 ];

@@ -2,6 +2,7 @@ import asyncio
 import os
 import shutil
 import subprocess
+import argparse
 from typing import Optional, Any
 
 from poke_env.player import Player
@@ -11,14 +12,15 @@ from poke_env.battle.double_battle import DoubleBattle
 from poke_env.ps_client.account_configuration import AccountConfiguration
 from poke_env.teambuilder.constant_teambuilder import ConstantTeambuilder
 
-from config_manager import C
+from poke_env import ShowdownServerConfiguration, LocalhostServerConfiguration
+from config_manager import C, startup_wizard
 from prompt_builder import (
     build_llm_prompt,
     build_doubles_llm_prompt,
     opp_team_summary,
     format_order_for_display,
 )
-from llm_client import GeminiClient, SingleBattleDecision, DoublesBattleDecision
+from llm_client import GeminiClient, OllamaClient, SingleBattleDecision, DoublesBattleDecision
 
 def copy_to_clipboard(text: str) -> bool:
     data = text.encode()
@@ -38,9 +40,36 @@ def copy_to_clipboard(text: str) -> bool:
     return False
 
 class PokémonAssistant(Player):
-    def __init__(self, *args, gemini_api_key: Optional[str] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        gemini_api_key: Optional[str] = None,
+        llm_provider: str = "gemini",
+        ollama_model: str = "qwen2.5:7b",
+        auto_play: bool = True,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
-        self.gemini_client = GeminiClient(api_key=gemini_api_key)
+        self.llm_provider = llm_provider
+        self.auto_play = auto_play
+        if llm_provider == "ollama":
+            self.llm_client = OllamaClient(model_name=ollama_model)
+        else:
+            self.llm_client = GeminiClient(api_key=gemini_api_key)
+
+    def _non_tera_orders(self, orders):
+        return [order for order in orders if not getattr(order, "terastallize", False)]
+
+    def _auto_single_order(self, battle):
+        if battle.available_moves:
+            move = battle.available_moves[0]
+            print(f"\n🤖  Auto fallback: move {move.id}")
+            return self.create_order(move)
+        if battle.available_switches:
+            switch = battle.available_switches[0]
+            print(f"\n🤖  Auto fallback: switch to {switch.species}")
+            return self.create_order(switch)
+        return self.choose_random_move(battle)
 
     # ── TEAM PREVIEW ──────────────────────────────────────────────────────────
     async def teampreview(self, battle) -> str:
@@ -55,6 +84,15 @@ class PokémonAssistant(Player):
             print(f"  [{i}] {mon.species}")
 
         is_doubles = isinstance(battle, DoubleBattle)
+        if self.auto_play:
+            if is_doubles:
+                lead_count = min(2, len(team_list))
+                leads = " and ".join(mon.species for mon in team_list[:lead_count])
+                print(f"\n🤖  Auto lead: {leads}")
+                return "/team " + "".join(str(i) for i in range(1, len(team_list) + 1))
+            print(f"\n🤖  Auto lead: {team_list[0].species}")
+            return "/team " + "".join(str(i) for i in range(1, len(team_list) + 1))
+
         if is_doubles:
             print("\n[DECISION] Choose Lead 1 and Lead 2 (Enter number 1–6)")
             lead_idx_1 = -1
@@ -116,6 +154,9 @@ class PokémonAssistant(Player):
         if not me or not opp:
             return self.choose_random_move(battle)
 
+        if self.auto_play and not self.llm_client.is_configured():
+            return self._auto_single_order(battle)
+
         prompt       = build_llm_prompt(battle)
         clipboard_ok = copy_to_clipboard(prompt)
 
@@ -136,13 +177,6 @@ class PokémonAssistant(Player):
                 "index": idx,
                 "description": f"Move: {move.id.upper()}"
             })
-        if battle.can_tera:
-            for idx, move in enumerate(battle.available_moves):
-                actions.append({
-                    "type": "tera",
-                    "index": idx,
-                    "description": f"Tera Move: {move.id.upper()} (Terastallize)"
-                })
         for idx, switch in enumerate(battle.available_switches):
             actions.append({
                 "type": "switch",
@@ -155,29 +189,29 @@ class PokémonAssistant(Player):
             print(f"    [{i}]  →  {a['description']}")
 
         # Query Gemini if configured
-        if self.gemini_client.is_configured():
+        if self.llm_client.is_configured():
             actions_str = "AVAILABLE ACTIONS:\n" + "\n".join(
                 f"  [{i+1}] {a['description']}" for i, a in enumerate(actions)
             )
             full_prompt = f"{prompt}\n\n{actions_str}\n\nYou MUST select one action index from the AVAILABLE ACTIONS list. Respond with the schema."
             
-            decision = await self.gemini_client.get_decision(full_prompt, SingleBattleDecision)
+            decision = await self.llm_client.get_decision(full_prompt, SingleBattleDecision)
             if decision:
                 reason = decision.get("reasoning_summary")
                 action_idx = decision.get("action_index", 1) - 1
                 
                 if 0 <= action_idx < len(actions):
                     chosen_action = actions[action_idx]
-                    print(f"\n🤖  {C.GREEN}{C.BOLD}Gemini Decision:{C.RESET} {chosen_action['description']}")
+                    provider_title = "Ollama" if self.llm_provider == "ollama" else "Gemini"
+                    print(f"\n🤖  {C.GREEN}{C.BOLD}{provider_title} Decision:{C.RESET} {chosen_action['description']}")
                     print(f"💬  {C.YELLOW}Reasoning:{C.RESET} {reason}")
                     
-                    if reason:
-                        reason_clean = reason.replace("\n", " ").strip()
-                        await self.ps_client.send_message(f"🤖 assistant: {reason_clean}", room=battle.battle_tag)
+                    dialogue = decision.get("rival_dialogue")
+                    if dialogue:
+                        dialogue_clean = dialogue.replace("\n", " ").strip()
+                        await self.ps_client.send_message(f"Blue: {dialogue_clean}", room=battle.battle_tag)
                     
-                    if chosen_action["type"] == "tera":
-                        return self.create_order(battle.available_moves[chosen_action["index"]], terastallize=True)
-                    elif chosen_action["type"] == "move":
+                    if chosen_action["type"] == "move":
                         return self.create_order(battle.available_moves[chosen_action["index"]])
                     elif chosen_action["type"] == "switch":
                         return self.create_order(battle.available_switches[chosen_action["index"]])
@@ -185,7 +219,10 @@ class PokémonAssistant(Player):
                     print(f"\n❌  Gemini selected invalid action index: {action_idx + 1}")
 
         # Fallback to manual selection
-        print("\nCommands:  move <n>  |  switch <n>  |  tera [move] <n>  |  c (re-copy prompt)")
+        if self.auto_play:
+            return self._auto_single_order(battle)
+
+        print("\nCommands:  move <n>  |  switch <n>  |  c (re-copy prompt)")
 
         while True:
             try:
@@ -207,13 +244,10 @@ class PokémonAssistant(Player):
 
             try:
                 if tokens[0] == "tera":
-                    if not battle.can_tera:
-                        print("❌  Terastalization already used or unavailable.")
-                        continue
-                    idx = int(tokens[-1]) - 1
-                    return self.create_order(battle.available_moves[idx], terastallize=True)
+                    print("❌  Terastalization is disabled: format is National Dex OU (No Tera).")
+                    continue
 
-                elif tokens[0] == "move" and len(tokens) > 1:
+                if tokens[0] == "move" and len(tokens) > 1:
                     idx = int(tokens[1]) - 1
                     return self.create_order(battle.available_moves[idx])
 
@@ -222,7 +256,7 @@ class PokémonAssistant(Player):
                     return self.create_order(battle.available_switches[idx])
 
                 else:
-                    print("❌  Unknown command. Use:  move <n>  |  switch <n>  |  tera [move] <n>  |  c")
+                    print("❌  Unknown command. Use:  move <n>  |  switch <n>  |  c")
 
             except (ValueError, IndexError):
                 print(
@@ -251,7 +285,9 @@ class PokémonAssistant(Player):
         for slot in range(2):
             active_mon = battle.active_pokemon[slot]
             slot_orders = valid_orders[slot]
-            non_pass_orders = [o for o in slot_orders if not isinstance(o, PassBattleOrder)]
+            non_pass_orders = self._non_tera_orders(
+                o for o in slot_orders if not isinstance(o, PassBattleOrder)
+            )
             
             for idx, order in enumerate(non_pass_orders):
                 desc = format_order_for_display(order, battle)
@@ -262,7 +298,7 @@ class PokémonAssistant(Player):
                 })
 
         # Query Gemini if configured
-        if self.gemini_client.is_configured():
+        if self.llm_client.is_configured():
             actions_str = ""
             for slot in range(2):
                 active_mon = battle.active_pokemon[slot]
@@ -276,15 +312,17 @@ class PokémonAssistant(Player):
             
             full_prompt = f"{prompt}\n\n{actions_str}\n\nYou MUST select one action index for Slot 1 and one action index for Slot 2 from the lists above. Respond with the schema."
             
-            decision = await self.gemini_client.get_decision(full_prompt, DoublesBattleDecision)
+            decision = await self.llm_client.get_decision(full_prompt, DoublesBattleDecision)
             if decision:
                 reason = decision.get("reasoning_summary")
-                print(f"\n🤖  {C.GREEN}{C.BOLD}Gemini Doubles Decision:{C.RESET}")
+                provider_title = "Ollama" if self.llm_provider == "ollama" else "Gemini"
+                print(f"\n🤖  {C.GREEN}{C.BOLD}{provider_title} Doubles Decision:{C.RESET}")
                 print(f"💬  {C.YELLOW}Reasoning:{C.RESET} {reason}")
                 
-                if reason:
-                    reason_clean = reason.replace("\n", " ").strip()
-                    await self.ps_client.send_message(f"🤖 assistant: {reason_clean}", room=battle.battle_tag)
+                dialogue = decision.get("rival_dialogue")
+                if dialogue:
+                    dialogue_clean = dialogue.replace("\n", " ").strip()
+                    await self.ps_client.send_message(f"Blue: {dialogue_clean}", room=battle.battle_tag)
                 
                 for slot in range(2):
                     active_mon = battle.active_pokemon[slot]
@@ -306,6 +344,15 @@ class PokémonAssistant(Player):
                 return DoubleBattleOrder(first_order=final_orders[0] or PassBattleOrder(), second_order=final_orders[1] or PassBattleOrder())
 
         # Fallback to manual selection
+        if self.auto_play:
+            for slot in range(2):
+                if slot_actions[slot]:
+                    final_orders[slot] = slot_actions[slot][0]["order"]
+                    print(f"\n🤖  Auto fallback slot {slot + 1}: {slot_actions[slot][0]['description']}")
+                else:
+                    final_orders[slot] = PassBattleOrder()
+            return DoubleBattleOrder(first_order=final_orders[0] or PassBattleOrder(), second_order=final_orders[1] or PassBattleOrder())
+
         for slot in range(2):
             active_mon = battle.active_pokemon[slot]
             non_pass_orders = [a["order"] for a in slot_actions[slot]]
@@ -352,3 +399,86 @@ class PokémonAssistant(Player):
 
     async def choose_move_order(self, battle) -> DoubleBattleOrder | SingleBattleOrder | DefaultBattleOrder:
         return await self.choose_move(battle)
+
+
+async def main():
+    parser = argparse.ArgumentParser(description="Pokémon Showdown AI Assistant")
+    parser.add_argument("--wizard", "-w", action="store_true", help="Run the interactive setup wizard")
+    parser.add_argument("--provider", "-p", choices=["gemini", "ollama"], default="ollama", help="LLM Provider (default: ollama)")
+    parser.add_argument("--model", "-m", default="qwen2.5:7b", help="Ollama model name (default: qwen2.5:7b)")
+    parser.add_argument("--server", "-s", choices=["localhost", "showdown"], default="localhost", help="Server to connect to (default: localhost)")
+    parser.add_argument("--battles", "-b", type=int, default=1, help="Number of battles to play (default: 1)")
+    parser.add_argument("--opponent", "-o", default="AI", help="Opponent username to challenge (default: AI)")
+    
+    args = parser.parse_args()
+
+    if args.wizard:
+        cfg = startup_wizard()
+        team_str  = cfg["_team"]
+        opponent  = cfg["_opponent"]
+        username  = cfg["username"]
+        password  = cfg["password"] or None
+        fmt       = cfg["format"]
+        num       = cfg["num_battles"]
+        mode      = cfg["mode"]
+        server    = cfg["server"]
+        llm_provider = cfg.get("llm_provider", "gemini")
+        ollama_model = cfg.get("ollama_model", "qwen2.5:7b")
+        gemini_api_key = cfg.get("gemini_api_key")
+    else:
+        # Load from config files or default
+        from config_manager import RED_MT_SILVER_TEAM, BLUE_TEAM
+        team_str = RED_MT_SILVER_TEAM
+        opponent = args.opponent
+        username = "User"
+        password = None
+        fmt = "gen9nationaldexounotera"
+        num = args.battles
+        mode = "challenge"
+        server = args.server
+        llm_provider = args.provider
+        ollama_model = args.model
+        gemini_api_key = os.environ.get("GEMINI_API_KEY")
+
+    server_cfg = (
+        LocalhostServerConfiguration if server == "localhost"
+        else ShowdownServerConfiguration
+    )
+
+    teambuilder = ConstantTeambuilder(team_str)
+
+    bot = PokémonAssistant(
+        account_configuration=AccountConfiguration(username, password),
+        gemini_api_key=gemini_api_key,
+        llm_provider=llm_provider,
+        ollama_model=ollama_model,
+        auto_play=True,
+        battle_format=fmt,
+        team=teambuilder,
+        server_configuration=server_cfg,
+    )
+
+    print(f"\n{C.GREEN}{C.BOLD}🤖  Bot '{username}' is online.{C.RESET}")
+    print(f"📦  Team loaded.")
+    print(f"🎮  Format: {fmt}")
+    
+    if llm_provider == "ollama":
+        print(f"🧠  LLM Model: Ollama ({ollama_model})")
+    else:
+        print(f"🧠  LLM Model: Gemini API")
+
+    if mode == "accept":
+        print("⏳  Waiting for an incoming challenge…\n")
+        await bot.accept_challenges(None, num)
+
+    elif mode == "challenge":
+        print(f"⚔️   Challenging {C.YELLOW}{opponent}{C.RESET}…\n")
+        await bot.send_challenges(opponent, num)
+
+    elif mode == "ladder":
+        print("🔍  Seeking a ladder match…\n")
+        await bot.ladder(num)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
