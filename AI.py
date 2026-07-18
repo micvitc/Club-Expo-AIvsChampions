@@ -64,6 +64,11 @@ async def play_one_battle(blue_ai: PokémonAssistant, fmt: str, shutdown_event: 
         target = target_user()
         try:
             print(f"🎯  Challenging target: {target}")
+            try:
+                await blue_ai.ps_client.send_message(f"/cancelchallenge {target}")
+            except Exception:
+                pass
+            await asyncio.sleep(0.25)
             await blue_ai.ps_client.challenge(target, fmt, blue_ai.get_next_team())
         except Exception:
             pass

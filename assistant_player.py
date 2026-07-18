@@ -248,9 +248,12 @@ class PokémonAssistant(Player):
         asyncio.ensure_future(self._send_delayed(tag, messages))
 
     async def _send_delayed(self, tag: str, messages: list[str]):
-        await asyncio.sleep(1)
         for msg in messages:
-            await self.ps_client.send_message(msg, room=tag)
+            try:
+                await self.ps_client.send_message(msg, room=tag)
+            except Exception:
+                self.logger.debug("Skipping post-battle message for %s", tag, exc_info=True)
+                break
 
     def _auto_single_order(self, battle):
         if battle.available_moves:

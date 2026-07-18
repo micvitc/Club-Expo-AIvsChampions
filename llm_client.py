@@ -13,12 +13,12 @@ except ImportError:
 
 class SingleBattleDecision(BaseModel):
     reasoning_summary: str = Field(description="A concise, 1-2 sentence explanation of the move decision in English to post to the battle chat. E.g. 'Switching to Great Tusk to threaten the opponent's active Pokemon.'")
-    rival_dialogue: str = Field(description="Write one short rival line as Blue using placeholders when they fit. Keep it cocky, natural, and punchy. Return only the final line.")
+    rival_dialogue: str = Field(description="Write one short rival line as Blue in first person, using placeholders when they fit. Keep it cocky, natural, and punchy. Return only the final line.")
     action_index: int = Field(description="The index of the chosen action from the AVAILABLE ACTIONS list.")
 
 class DoublesBattleDecision(BaseModel):
     reasoning_summary: str = Field(description="A concise, 1-2 sentence explanation of the moves chosen for both slots to post in the battle chat.")
-    rival_dialogue: str = Field(description="Write one short rival line as Blue using placeholders when they fit. Keep it cocky, natural, and punchy. Return only the final line.")
+    rival_dialogue: str = Field(description="Write one short rival line as Blue in first person, using placeholders when they fit. Keep it cocky, natural, and punchy. Return only the final line.")
     slot1_action_index: int = Field(description="The index of the chosen action for Slot 1 from the slot 1 available actions list.")
     slot2_action_index: int = Field(description="The index of the chosen action for Slot 2 from the slot 2 available actions list.")
 
@@ -96,7 +96,7 @@ class OllamaClient:
                 "\n\nYou MUST return a JSON object with exactly these fields:\n"
                 "{\n"
                 '  "reasoning_summary": "A concise explanation of the move in English.",\n'
-                '  "rival_dialogue": "One short rival line as Blue using placeholders when they fit.",\n'
+                '  "rival_dialogue": "One short rival line as Blue in first person using placeholders when they fit.",\n'
                 '  "action_index": <integer index of the chosen action>\n'
                 "}"
             )
@@ -105,7 +105,7 @@ class OllamaClient:
                 "\n\nYou MUST return a JSON object with exactly these fields:\n"
                 "{\n"
                 '  "reasoning_summary": "A concise explanation of the moves in English.",\n'
-                '  "rival_dialogue": "One short rival line as Blue using placeholders when they fit.",\n'
+                '  "rival_dialogue": "One short rival line as Blue in first person using placeholders when they fit.",\n'
                 '  "slot1_action_index": <integer index of slot 1 action>,\n'
                 '  "slot2_action_index": <integer index of slot 2 action>\n'
                 "}"
