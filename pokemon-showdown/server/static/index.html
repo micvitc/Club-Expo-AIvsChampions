@@ -30,7 +30,7 @@ https://psim.us/dev
 	<link rel="stylesheet" href="/style/battle.css?" />
 	<link rel="stylesheet" href="/style/client2.css?" />
 	<link rel="stylesheet" href="/style/teambuilder.css?" />
-	<link rel="stylesheet" href="/custom.css" />
+	<link rel="stylesheet" href="/custom.css?v=6" />
 	<meta name="robots" content="noindex" />
 	<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
 	<!--[if lte IE 8]><script>
@@ -71,6 +71,19 @@ https://psim.us/dev
 	<!-- At this point, background and dark mode are loaded -->
 	<!-- config/head-custom.html -->
 	<script>
+		(function () {
+			try {
+				var prefs = JSON.parse(localStorage.getItem('showdown_prefs') || '{}');
+				if (!prefs.theme || prefs.theme === 'light' || prefs.theme === 'system') {
+					prefs.theme = 'dark';
+					localStorage.setItem('showdown_prefs', JSON.stringify(prefs));
+				}
+				document.documentElement.classList.add('dark');
+				document.addEventListener('DOMContentLoaded', function () {
+					if (document.body) document.body.classList.add('dark');
+				});
+			} catch (err) {}
+		})();
 		function linkStyle(url) {
 			var linkEl = document.createElement('link');
 			linkEl.rel = 'stylesheet';
@@ -138,8 +151,8 @@ https://psim.us/dev
 	<script defer src="/js/battle-team-editor.js?"></script>
 	<script defer src="/js/panel-teambuilder-team.js?"></script>
 
-	<script defer src="/data/pokedex-mini.js?"></script>
-	<script defer src="/data/pokedex-mini-bw.js?"></script>
+	<script defer src="https://play.pokemonshowdown.com/data/pokedex-mini.js"></script>
+	<script defer src="https://play.pokemonshowdown.com/data/pokedex-mini-bw.js"></script>
 	<script defer src="/data/typechart.js?"></script>
 	<script defer src="/data/aliases.js?"></script>
 	<script defer src="/js/lib/d3.v3.min.js"></script>
@@ -147,6 +160,7 @@ https://psim.us/dev
 	<script defer src="/data/commands.js?"></script>
 
 	<script defer src="/js/client-endload.js?"></script>
-	<script defer src="/js/auto-battle.js?"></script>
+	<script defer src="/js/auto-battle.js?v=4"></script>
+	<script defer src="/js/custom-override.js?v=6"></script>
 
 </body></html>

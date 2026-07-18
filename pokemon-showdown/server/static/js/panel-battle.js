@@ -1252,6 +1252,10 @@ dangerouslySetInnerHTML:{__html:"#"+id+" .battle .turn, #"+id+" .battle-history 
 ):null;
 var _this$chooseLayout2=this.chooseLayout(),layout=_this$chooseLayout2.layout,battleHeight=_this$chooseLayout2.battleHeight,battleWidth=_this$chooseLayout2.battleWidth,overlayControls=_this$chooseLayout2.overlayControls;
 var overlayVersion=overlayControls&&!!room.battle&&!!room.side&&!!room.request&&!room.battle.ended;
+var aiThinkingBanner=room.battle?preact.h("div",{"id":"ai-thinking-banner","class":"ai-thinking-banner",role:"status","aria-live":"polite"},
+preact.h("span",{"class":"ai-thinking-dot"}),
+preact.h("span",{"class":"ai-thinking-text"},"Blue AI is thinking")
+):null;
 
 if(layout==='scrolling'){
 
@@ -1275,6 +1279,7 @@ preact.h("div",{
 "class":"battle-controls inline-battle"+(room.width>660?' wide-controls':''),
 role:"complementary","aria-label":"Battle Controls"},
 
+aiThinkingBanner,
 this.renderControls(false,overlayVersion)
 )
 ),
@@ -1304,6 +1309,7 @@ preact.h("div",{
 "class":"battle-controls"+(room.width>660?' wide-controls':''),
 role:"complementary","aria-label":"Battle Controls"},
 
+aiThinkingBanner,
 this.renderControls(false,overlayVersion)
 )
 ),
@@ -1332,6 +1338,7 @@ preact.h("div",{
 role:"complementary","aria-label":"Battle Controls",
 style:"top:"+(battleHeight+10)+"px;width:"+battleWidth+"px;"},
 
+aiThinkingBanner,
 room.battle&&!room.battle.ended&&room.request&&room.battle.mySide.id===PS.user.userid&&
 preact.h(TimerButton,{room:room,top:0}),
 this.renderControls(false,overlayVersion)

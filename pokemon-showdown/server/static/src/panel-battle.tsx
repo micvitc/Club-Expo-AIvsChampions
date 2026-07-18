@@ -1252,6 +1252,12 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		></style> : null;
 		const { layout, battleHeight, battleWidth, overlayControls } = this.chooseLayout();
 		const overlayVersion = overlayControls && !!room.battle && !!room.side && !!room.request && !room.battle.ended;
+		const aiThinkingBanner = room.battle ? (
+			<div id="ai-thinking-banner" class="ai-thinking-banner" role="status" aria-live="polite">
+				<span class="ai-thinking-dot"></span>
+				<span class="ai-thinking-text">Blue AI is thinking</span>
+			</div>
+		) : null;
 
 		if (layout === 'scrolling') {
 			// low-width-low-height layout
@@ -1275,6 +1281,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 						class={`battle-controls inline-battle${room.width > 660 ? ' wide-controls' : ''}`}
 						role="complementary" aria-label="Battle Controls"
 					>
+						{aiThinkingBanner}
 						{this.renderControls(false, overlayVersion)}
 					</div>
 				</ChatLog>
@@ -1304,6 +1311,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 						class={`battle-controls${room.width > 660 ? ' wide-controls' : ''}`}
 						role="complementary" aria-label="Battle Controls"
 					>
+						{aiThinkingBanner}
 						{this.renderControls(false, overlayVersion)}
 					</div>
 				</ChatLog>
@@ -1318,25 +1326,26 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		// regular layout
 		return <PSPanelWrapper room={room} focusClick noScroll="hidden">
 			{hardcoreStyle}
-			<div class="scrollable-battle-container" style={`width:${battleWidth}px`}>
-				<BattleDiv room={room} />
-				{overlayVersion && <div
-					class="overlay-controls"
-					style={`position:absolute;left:0;top:${battleHeight}px;width:${battleWidth}px;height:0`}
-				>
-					{this.renderControls(true)}
-				</div>}
-				<div class="battle-controls-container">
-					<div
-						class={`battle-controls${battleWidth >= 639 ? ' wide-controls' : ''}`}
-						role="complementary" aria-label="Battle Controls"
-						style={`top:${battleHeight + 10}px;width:${battleWidth}px;`}
+				<div class="scrollable-battle-container" style={`width:${battleWidth}px`}>
+					<BattleDiv room={room} />
+					{overlayVersion && <div
+						class="overlay-controls"
+						style={`position:absolute;left:0;top:${battleHeight}px;width:${battleWidth}px;height:0`}
 					>
-						{(room.battle && !room.battle.ended && room.request && room.battle.mySide.id === PS.user.userid) &&
-							<TimerButton room={room} top={0} />}
-						{this.renderControls(false, overlayVersion)}
+						{this.renderControls(true)}
+					</div>}
+					<div class="battle-controls-container">
+						<div
+							class={`battle-controls${battleWidth >= 639 ? ' wide-controls' : ''}`}
+							role="complementary" aria-label="Battle Controls"
+							style={`top:${battleHeight + 10}px;width:${battleWidth}px;`}
+						>
+							{aiThinkingBanner}
+							{(room.battle && !room.battle.ended && room.request && room.battle.mySide.id === PS.user.userid) &&
+								<TimerButton room={room} top={0} />}
+							{this.renderControls(false, overlayVersion)}
+						</div>
 					</div>
-				</div>
 			</div>
 			<ChatLog
 				class="battle-log hasuserlist" room={room} left={battleWidth} noSubscription hasPreempt
