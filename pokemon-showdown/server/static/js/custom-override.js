@@ -252,7 +252,8 @@
   function updateThinkingIndicator() {
     var room = getActiveBattleRoom();
     var battle = room && room.battle;
-    var shouldShow = !!(battle && battle.started && !battle.ended && room && room.side && !room.request);
+    var choicesDone = !!(room && room.choices && typeof room.choices.isDone === 'function' && room.choices.isDone());
+    var shouldShow = !!(battle && battle.started && !battle.ended && room && room.side && room.request && choicesDone);
     if (!shouldShow) {
       hideThinkingBadge();
       return;
