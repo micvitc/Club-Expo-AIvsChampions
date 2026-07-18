@@ -13,6 +13,7 @@
   var challengePollTimer = null;
   var resultPollTimer = null;
   var thinkingPollTimer = null;
+  var battleMusic = null;
 
   function toID(s) {
     return ('' + s).toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -75,6 +76,27 @@
       '</div>';
   }
 
+  function stopBattleMusic() {
+    if (!battleMusic) return;
+    try {
+      battleMusic.stop();
+      battleMusic.destroy();
+    } catch (err) {}
+    battleMusic = null;
+  }
+
+  function startBattleMusic() {
+    if (!window.BattleSound || !window.HTMLAudioElement) return;
+    try {
+      if (PS && PS.prefs && PS.prefs.mute) return;
+      if (battleMusic && battleMusic.isPlaying) return;
+      if (!battleMusic) {
+        battleMusic = BattleSound.loadBgm('audio/bw-rival.mp3', 19180, 57373);
+      }
+      battleMusic.resume();
+    } catch (err) {}
+  }
+
   function resultPortrait(won) {
     var avatar = won ? 'blue' : 'red';
     var label = won ? 'Blue AI' : 'Red Human';
@@ -87,6 +109,7 @@
   function showBoot() {
     phase = 'boot';
     activeChallengeRoomId = null;
+    stopBattleMusic();
     render(shell(
       sigil() +
       heroLine('Connecting', 'Waiting for the local Showdown client to finish loading.', ready() ? 'Client connected, preparing controls.' : 'Connecting to Showdown...') +
@@ -96,6 +119,7 @@
 
   function showChoose() {
     if (phase === 'battle' || phase === 'result') return;
+    stopBattleMusic();
     phase = 'choose';
     currentDifficulty = null;
     activeChallengeRoomId = null;
@@ -131,6 +155,7 @@
   }
 
   function showWaiting(mode) {
+    stopBattleMusic();
     phase = 'waiting';
     activeChallengeRoomId = null;
     render(shell(
@@ -159,6 +184,7 @@
 
   function showIncomingChallenge(room) {
     if (phase === 'battle' || phase === 'result') return;
+    stopBattleMusic();
     phase = 'incoming';
     activeChallengeRoomId = room ? room.id : null;
 
@@ -196,6 +222,7 @@
     if (phase === 'battle') return;
     phase = 'battle';
     hideOverlay();
+    startBattleMusic();
     startResultWatcher();
   }
 
@@ -204,6 +231,7 @@
     phase = 'result';
     activeChallengeRoomId = null;
     stopPollers();
+    stopBattleMusic();
     render(shell(
       resultPortrait(won) +
       '<div class="overlay-result ' + (won ? 'overlay-result--win' : 'overlay-result--loss') + '">' +
