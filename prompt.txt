@@ -239,6 +239,8 @@ Rules:
 * If the battle is tense, sound confident.
 * If the AI is winning, sound smug.
 * If the AI is losing, sound annoyed but still defiant.
+* Prefer a line that fits the chosen action and the most important battlefield detail.
+* Use the placeholders to make the line specific when they help.
 
 Available placeholders:
 

@@ -48,6 +48,14 @@ def copy_to_clipboard(text: str) -> bool:
                 pass
     return False
 
+def _format_pct(value: Any) -> str:
+    try:
+        if value is None:
+            return "0%"
+        return f"{round(float(value) * 100)}%"
+    except Exception:
+        return "0%"
+
 class PokémonAssistant(Player):
     def __init__(
         self,
@@ -161,6 +169,69 @@ class PokémonAssistant(Player):
 
     def _non_tera_orders(self, orders):
         return [order for order in orders if not getattr(order, "terastallize", False)]
+
+    def _battle_dialogue_values(self, battle, action: Optional[Any] = None) -> dict[str, str]:
+        def first_active(pokemon_or_list):
+            if isinstance(pokemon_or_list, (list, tuple)):
+                for mon in pokemon_or_list:
+                    if mon:
+                        return mon
+                return None
+            return pokemon_or_list
+
+        pokemon = first_active(battle.active_pokemon)
+        opponent = first_active(battle.opponent_active_pokemon)
+
+        move_name = ""
+        if action is not None:
+            move_name = getattr(action, "label", "") or getattr(getattr(action, "move", None), "name", "") or ""
+            if move_name.startswith("Switch to "):
+                move_name = move_name.replace("Switch to ", "", 1)
+
+        weather = "none"
+        if getattr(battle, "weather", None):
+            try:
+                weather = next(iter(battle.weather.keys())).name
+            except Exception:
+                weather = str(battle.weather)
+
+        terrain = "none"
+        if getattr(battle, "fields", None):
+            try:
+                terrain = ", ".join(field.name for field in battle.fields) or "none"
+            except Exception:
+                terrain = str(battle.fields)
+
+        status = ""
+        if pokemon and getattr(pokemon, "status", None):
+            status = pokemon.status.name
+
+        return {
+            "pokemon": getattr(pokemon, "species", "Blue") if pokemon else "Blue",
+            "opponent": getattr(opponent, "species", "Red") if opponent else "Red",
+            "move": move_name or "that play",
+            "my_hp": _format_pct(getattr(pokemon, "current_hp_fraction", 0)),
+            "opp_hp": _format_pct(getattr(opponent, "current_hp_fraction", 0)),
+            "status": status or "healthy",
+            "weather": weather,
+            "terrain": terrain,
+            "turn": str(getattr(battle, "turn", 0)),
+        }
+
+    def _render_dialogue(self, battle, raw_dialogue: Optional[str], action: Optional[Any] = None) -> Optional[str]:
+        if not raw_dialogue:
+            return None
+        text = " ".join(str(raw_dialogue).replace("\n", " ").split()).strip().strip('"').strip("'")
+        if not text:
+            return None
+        values = self._battle_dialogue_values(battle, action)
+
+        def replace_placeholder(match):
+            key = match.group(1).lower()
+            return values.get(key, match.group(0))
+
+        text = re.sub(r"%([a-z_]+)%", replace_placeholder, text)
+        return text[:240]
 
     def _battle_finished_callback(self, battle):
         tag = battle.battle_tag
@@ -308,7 +379,7 @@ class PokémonAssistant(Player):
             chosen_action = shortlist[0]
             print(f"\n🤖  Heuristic Decision: {chosen_action.label}")
             print(f"💬  Reasoning: {chosen_action.reason}")
-            dialogue = action_template(chosen_action)
+            dialogue = self._render_dialogue(battle, action_template(chosen_action), chosen_action)
             if dialogue:
                 self._pending_dialogue[battle.battle_tag] = dialogue
             if chosen_action.kind == "move":
@@ -337,9 +408,13 @@ class PokémonAssistant(Player):
                     print(f"\n🤖  {C.GREEN}{C.BOLD}{provider_title} Decision:{C.RESET} {chosen_action.label}")
                     print(f"💬  {C.YELLOW}Reasoning:{C.RESET} {reason}")
                     
+                    dialogue_clean = None
                     dialogue = decision.get("rival_dialogue")
                     if dialogue:
-                        dialogue_clean = dialogue.replace("\n", " ").strip()
+                        dialogue_clean = self._render_dialogue(battle, dialogue, chosen_action)
+                        if not dialogue_clean:
+                            dialogue_clean = self._render_dialogue(battle, action_template(chosen_action), chosen_action)
+                    if dialogue_clean:
                         print(f"🗣️  {C.CYAN}{C.BOLD}Rival Dialogue:{C.RESET} {dialogue_clean}")
                         self._pending_dialogue[battle.battle_tag] = dialogue_clean
                     
@@ -456,11 +531,25 @@ class PokémonAssistant(Player):
                 print(f"\n🤖  {C.GREEN}{C.BOLD}{provider_title} Doubles Decision:{C.RESET}")
                 print(f"💬  {C.YELLOW}Reasoning:{C.RESET} {reason}")
                 
+                dialogue_clean = None
                 dialogue = decision.get("rival_dialogue")
                 if dialogue:
-                    dialogue_clean = dialogue.replace("\n", " ").strip()
-                    print(f"🗣️  {C.CYAN}{C.BOLD}Rival Dialogue:{C.RESET} {dialogue_clean}")
-                    self._pending_dialogue[battle.battle_tag] = dialogue_clean
+                    chosen_candidates = []
+                    for slot in range(2):
+                        if not slot_actions[slot]:
+                            continue
+                        key = f"slot{slot+1}_action_index"
+                        action_idx = decision.get(key, 1) - 1
+                        if 0 <= action_idx < len(slot_actions[slot]):
+                            chosen_candidates.append(slot_actions[slot][action_idx])
+                    if chosen_candidates:
+                        chosen_candidates.sort(key=lambda a: a.score, reverse=True)
+                        dialogue_clean = self._render_dialogue(battle, dialogue, chosen_candidates[0])
+                    if not dialogue_clean and slot_actions[0]:
+                        dialogue_clean = self._render_dialogue(battle, action_template(slot_actions[0][0]), slot_actions[0][0])
+                    if dialogue_clean:
+                        print(f"🗣️  {C.CYAN}{C.BOLD}Rival Dialogue:{C.RESET} {dialogue_clean}")
+                        self._pending_dialogue[battle.battle_tag] = dialogue_clean
                 
                 for slot in range(2):
                     active_mon = battle.active_pokemon[slot]

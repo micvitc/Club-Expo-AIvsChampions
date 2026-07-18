@@ -282,7 +282,7 @@ def tune_actions_for_difficulty(actions: List[RankedAction], difficulty: Optiona
 
 def action_template(action: RankedAction) -> str:
     if action.kind == "move":
-        return f"Blue sees the opening and uses {action.label}."
+        return "%pokemon%, use %move%."
     if action.kind == "switch":
-        return f"Blue pivots to {action.label.replace('Switch to ', '')}."
-    return "Blue keeps pressure on."
+        return "%pokemon%, pivot now."
+    return "That opening is mine."
