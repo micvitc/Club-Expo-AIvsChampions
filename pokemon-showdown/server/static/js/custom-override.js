@@ -109,16 +109,16 @@
       '</div>' +
       '<div class="overlay-actions overlay-actions--stack">' +
         '<button class="overlay-btn overlay-btn--easy" data-d="easy">' +
-          '<strong>Easy</strong><span>Heuristic</span><em>More mistakes, less pressure</em>' +
+          '<strong>Easy</strong><span>Light bias</span><em>More mistakes, less pressure</em>' +
         '</button>' +
         '<button class="overlay-btn overlay-btn--medium" data-d="medium">' +
-          '<strong>Medium</strong><span>Qwen 2.5 7B</span><em>Balanced play</em>' +
+          '<strong>Medium</strong><span>Balanced bias</span><em>Shared brain, steadier lines</em>' +
         '</button>' +
         '<button class="overlay-btn overlay-btn--hard" data-d="hard">' +
-          '<strong>Hard</strong><span>Gemini</span><em>Sharper lines</em>' +
+          '<strong>Hard</strong><span>Sharper bias</span><em>Shared brain, riskier lines</em>' +
         '</button>' +
       '</div>' +
-      '<div class="overlay-footnote">You can switch difficulty later from the result screen.</div>'
+      '<div class="overlay-footnote">All three use the same AI path, with slightly different heuristic bias.</div>'
     , 'phase-choose'));
 
     var overlay = getOverlay();

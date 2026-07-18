@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import random
+from dataclasses import replace
 from typing import Any, Dict, List, Optional, Tuple
 
 from poke_env.battle.move import Move
@@ -250,18 +250,34 @@ def should_skip_llm(actions: List[RankedAction]) -> bool:
     return False
 
 
-def choose_easy_action(actions: List[RankedAction]) -> Optional[RankedAction]:
-    if not actions:
-        return None
-    if len(actions) == 1:
-        return actions[0]
+def tune_actions_for_difficulty(actions: List[RankedAction], difficulty: Optional[str]) -> List[RankedAction]:
+    difficulty = (difficulty or "medium").lower()
+    tuned: List[RankedAction] = []
 
-    top = actions[: min(3, len(actions))]
-    if len(top) == 2 and top[0].score - top[1].score >= 28:
-        return top[0] if random.random() < 0.75 else top[1]
+    for action in actions:
+        score = action.score
+        if difficulty == "easy":
+            if action.kind == "switch":
+                score -= 4.5
+            elif action.kind == "move":
+                score += 0.5
+            if "setup" in action.reason:
+                score -= 1.5
+            if "recovery" in action.reason:
+                score -= 1.0
+        elif difficulty == "hard":
+            if action.kind == "switch":
+                score += 2.0 if "better matchup" in action.reason else 0.5
+            elif action.kind == "move":
+                score += 1.0
+            if "safe setup" in action.reason:
+                score += 2.0
+            if "pivot" in action.reason:
+                score += 1.0
+        tuned.append(replace(action, score=score))
 
-    weights = [0.56, 0.28, 0.16][: len(top)]
-    return random.choices(top, weights=weights, k=1)[0]
+    tuned.sort(key=lambda a: a.score, reverse=True)
+    return tuned
 
 
 def action_template(action: RankedAction) -> str:

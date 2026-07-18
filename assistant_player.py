@@ -17,10 +17,10 @@ from poke_env import ShowdownServerConfiguration, LocalhostServerConfiguration
 from config_manager import C, startup_wizard
 from battle_hybrid import (
     action_template,
-    choose_easy_action,
     score_double_slot_actions,
     score_single_actions,
     should_skip_llm,
+    tune_actions_for_difficulty,
     summarize_actions,
 )
 from prompt_builder import (
@@ -75,28 +75,22 @@ class PokémonAssistant(Player):
 
     async def _set_difficulty(self, level: str):
         self.current_difficulty = level
-        if level == "easy":
-            self.llm_client = None
-            self.llm_provider = "heuristic"
-        elif level == "medium":
-            self.llm_client = OllamaClient(model_name="qwen2.5:7b")
-            self.llm_provider = "ollama"
-        elif level == "hard":
-            self.llm_client = GeminiClient(api_key=self._gemini_api_key)
-            self.llm_provider = "gemini"
-        print(f"\n⚙️  Difficulty set to: {level} ({self.llm_provider})")
+        print(f"\n⚙️  Difficulty set to: {level}")
 
     def _install_ps_message_hook(self):
         original_handle_message = self.ps_client._handle_message
 
         async def wrapped_handle_message(message: str):
-            await self._process_browser_command(message)
+            consumed = await self._process_browser_command(message)
+            if consumed:
+                return
             await original_handle_message(message)
 
         self.ps_client._handle_message = wrapped_handle_message
 
     async def _process_browser_command(self, message: str):
         try:
+            consumed = False
             lines = message.split("\n")
             for line in lines:
                 parts = line.split("|")
@@ -119,20 +113,21 @@ class PokémonAssistant(Player):
                             if level in ("easy", "medium", "hard"):
                                 await self._set_difficulty(level)
                                 self.difficulty_event.set()
-                            return
+                                return True
                         if text.startswith("difficulty "):
                             level = text.split(" ", 1)[1].strip().lower()
                             if level in ("easy", "medium", "hard"):
                                 await self._set_difficulty(level)
                                 self.difficulty_event.set()
-                            return
+                                return True
                         elif text == "!rematch":
                             self.rematch_event.set()
-                            return
+                            return True
                         elif text == "rematch":
                             self.rematch_event.set()
-                            return
+                            return True
                 if len(parts) >= 4 and parts[1] == "c:" and "battle-control " in line:
+                    consumed = True
                     self.logger.info("Received battle-control line: %s", line)
                     sender = parts[3].strip() if len(parts) > 3 else ""
                     if self._is_valid_browser_user(sender):
@@ -148,12 +143,14 @@ class PokémonAssistant(Player):
                     if action == "difficulty" and value in ("easy", "medium", "hard"):
                         await self._set_difficulty(value)
                         self.difficulty_event.set()
-                        return
+                        return True
                     if action == "rematch":
                         self.rematch_event.set()
-                        return
+                        return True
+            return consumed
         except Exception as e:
             self.logger.error("Error handling browser command: %s", e)
+            return False
 
     def _is_valid_browser_user(self, name: str) -> bool:
         userid = re.sub(r"[^a-z0-9]+", "", (name or "").lower())
@@ -287,8 +284,7 @@ class PokémonAssistant(Player):
         if not ranked_actions:
             return self._auto_single_order(battle) if self.auto_play else self.choose_random_move(battle)
 
-        shortlist_size = 5 if self.current_difficulty == "hard" else 3
-        shortlist = ranked_actions[:shortlist_size]
+        shortlist = tune_actions_for_difficulty(ranked_actions, self.current_difficulty)[:3]
         shortlist_text = "─── TOP OPTIONS ───────────────────────────────────────\n" + summarize_actions(shortlist)
         prompt = build_llm_prompt(battle, shortlist_text=shortlist_text)
         clipboard_ok = copy_to_clipboard(prompt)
@@ -307,16 +303,6 @@ class PokémonAssistant(Player):
             print(f"    [{i}]  →  {a.label}  (score {a.score:.1f})")
         if len(ranked_actions) > len(shortlist):
             print(f"    ... {len(ranked_actions) - len(shortlist)} more legal actions hidden")
-
-        actions = shortlist
-
-        if self.current_difficulty == "easy":
-            chosen_action = choose_easy_action(shortlist)
-            if chosen_action:
-                print(f"\n🤖  Easy heuristic decision: {chosen_action.label}")
-                print(f"💬  Reasoning: {chosen_action.reason}")
-                if chosen_action.kind in ("move", "switch"):
-                    return self.create_order(chosen_action.order)
 
         if should_skip_llm(shortlist):
             chosen_action = shortlist[0]
@@ -345,8 +331,8 @@ class PokémonAssistant(Player):
                 reason = decision.get("reasoning_summary")
                 action_idx = decision.get("action_index", 1) - 1
                 
-                if 0 <= action_idx < len(actions):
-                    chosen_action = actions[action_idx]
+                if 0 <= action_idx < len(shortlist):
+                    chosen_action = shortlist[action_idx]
                     provider_title = "Ollama" if self.llm_provider == "ollama" else "Gemini"
                     print(f"\n🤖  {C.GREEN}{C.BOLD}{provider_title} Decision:{C.RESET} {chosen_action.label}")
                     print(f"💬  {C.YELLOW}Reasoning:{C.RESET} {reason}")
@@ -412,19 +398,10 @@ class PokémonAssistant(Player):
     async def choose_doubles_move(self, battle: DoubleBattle) -> DoubleBattleOrder:
         await self.ps_client.send_message(f"/join {battle.battle_tag}")
         slot_ranked = [score_double_slot_actions(battle, 0), score_double_slot_actions(battle, 1)]
-        shortlist_size = 5 if self.current_difficulty == "hard" else 3
-        slot_shortlists = [ranked[:shortlist_size] for ranked in slot_ranked]
-        if self.current_difficulty == "easy":
-            final_orders = []
-            for slot in range(2):
-                chosen = choose_easy_action(slot_shortlists[slot])
-                if chosen:
-                    print(f"\n🤖  Easy heuristic slot {slot + 1}: {chosen.label}")
-                    print(f"💬  Slot {slot + 1}: {chosen.reason}")
-                    final_orders.append(chosen.order)
-                else:
-                    final_orders.append(PassBattleOrder())
-            return DoubleBattleOrder(first_order=final_orders[0], second_order=final_orders[1])
+        slot_shortlists = [
+            tune_actions_for_difficulty(ranked, self.current_difficulty)[:3]
+            for ranked in slot_ranked
+        ]
 
         if all(slot_shortlists[slot] and should_skip_llm(slot_shortlists[slot]) for slot in range(2)):
             final_orders = [slot_shortlists[0][0].order, slot_shortlists[1][0].order]
