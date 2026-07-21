@@ -32,12 +32,14 @@ def ensure_showdown_server() -> subprocess.Popen | None:
     server = subprocess.Popen(
         ["node", "pokemon-showdown", "start", "--skip-build", str(SHOWDOWN_PORT)],
         cwd=SHOWDOWN_DIR,
-        stdout=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
         if server.poll() is not None:
+            out, _ = server.communicate(timeout=5)
+            print(f"❌ Showdown exited ({server.returncode}):\n{out.decode()}", flush=True)
             raise RuntimeError("Local Pokémon Showdown exited before it was ready.")
         if is_showdown_running():
             print("✅  Local Pokémon Showdown is ready.", flush=True)
