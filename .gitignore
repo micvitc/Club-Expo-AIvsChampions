@@ -99,16 +99,16 @@ ipython_config.py
 venv/
 ENV/
 env/
-.env
 .venv
 pip-selfcheck.json
 
 # IDEs
 .idea/
-.vscode/
 *.swp
 *.swo
 
 # Local build repositories
 pokemon-showdown-client/
 
+config.bat
+node_modules
