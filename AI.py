@@ -185,38 +185,18 @@ async def main():
         await blue_ai.ps_client.send_message("/avatar blue")
         print(f"\n{C.GREEN}🎮  Waiting for difficulty selection from browser...{C.RESET}")
 
-        while not shutdown_event.is_set():
-            # ── Outer loop: wait for a difficulty selection ──
-            blue_ai.difficulty_event.clear()
-            while not blue_ai.difficulty_event.is_set() and not shutdown_event.is_set():
-                await asyncio.sleep(0.2)
-            if shutdown_event.is_set():
-                break
+        # ── Wait for a difficulty selection from browser ──
+        blue_ai.difficulty_event.clear()
+        while not blue_ai.difficulty_event.is_set() and not shutdown_event.is_set():
+            await asyncio.sleep(0.2)
 
+        if not shutdown_event.is_set():
             print(f"⚔️  Challenging with {blue_ai.current_difficulty} difficulty…\n")
             blue_ai.difficulty_event.clear()
 
-            # ── Inner loop: keep playing rematches with this difficulty ──
-            while not shutdown_event.is_set():
-                blue_ai.rematch_event.clear()
-                ok = await play_one_battle(blue_ai, fmt, shutdown_event)
-                if not ok:
-                    break
-
-                print(f"\n{C.GREEN}✅  Battle finished.{C.RESET}")
-
-                # Wait for either rematch (!rematch) or difficulty change (!difficulty)
-                while not shutdown_event.is_set():
-                    if blue_ai.difficulty_event.is_set():
-                        break  # Break all the way out to outer loop
-                    if blue_ai.rematch_event.is_set():
-                        blue_ai.rematch_event.clear()
-                        print("🔄  Rematch requested! Challenging again...\n")
-                        break  # Stay in inner loop
-                    await asyncio.sleep(0.2)
-
-                if blue_ai.difficulty_event.is_set():
-                    break  # Back to outer loop (new difficulty)
+            # Play exactly one battle, then exit for a clean process restart
+            await play_one_battle(blue_ai, fmt, shutdown_event)
+            print(f"\n{C.GREEN}✅  Battle completed. Restarting AI script to maintain a clean environment...{C.RESET}")
 
     except asyncio.CancelledError:
         pass

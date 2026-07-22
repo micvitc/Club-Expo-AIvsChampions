@@ -20,10 +20,13 @@ def main():
     print(f"🌐  Opening battle viewer: {C.CYAN}http://localhost:8000/{C.RESET}")
     webbrowser.open("http://localhost:8000/")
     
-    # 2. Start AI.py in the foreground
+    # 2. Start AI.py in the foreground with auto-restart loop
     print(f"🚀  Starting local Showdown server & opponent AI in the foreground...\n")
     try:
-        subprocess.run([python_bin, "AI.py"] + sys.argv[1:])
+        while True:
+            subprocess.run([python_bin, "AI.py"] + sys.argv[1:])
+            print(f"\n🔄  AI script exited. Restarting battle server interface...")
+            time.sleep(1)
     except KeyboardInterrupt:
         pass
     finally:

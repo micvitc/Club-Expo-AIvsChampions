@@ -158,11 +158,19 @@
   }
 
   function resultPortrait(won) {
-    var avatar = won ? 'blue' : 'red';
-    var label = won ? 'Blue AI' : 'Red Human';
+    var avatar = won ? 'red' : 'blue';
+    var label = won ? 'Red Human' : 'Blue AI';
+    var markSymbol = won ? '🏆' : '💀';
     return '' +
-      '<div class="overlay-result-avatar overlay-result-avatar--' + (won ? 'win' : 'loss') + '">' +
-        '<img src="/sprites/trainers/' + avatar + '.png" alt="' + label + '" />' +
+      '<div style="display: flex; justify-content: center; width: 100%;">' +
+        '<div style="position: relative; display: inline-block; margin-bottom: 12px;">' +
+          '<div class="overlay-result-avatar overlay-result-avatar--' + (won ? 'win' : 'loss') + '">' +
+            '<img src="/sprites/trainers/' + avatar + '.png" alt="' + label + '" />' +
+          '</div>' +
+          '<div class="overlay-result-mark" style="position: absolute; bottom: -6px; right: -6px; margin: 0; width: 44px; height: 44px; font-size: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">' +
+            markSymbol +
+          '</div>' +
+        '</div>' +
       '</div>';
   }
 
@@ -225,6 +233,8 @@
     }
   }
 
+  var controlMessageInterval = null;
+
   function showWaiting(mode) {
     phase = 'waiting';
     activeChallengeRoomId = null;
@@ -248,9 +258,31 @@
       cancel.addEventListener('click', function () {
         pendingPM = null;
         currentDifficulty = null;
+        try {
+          localStorage.removeItem('showdown_autosend_difficulty');
+        } catch (e) {}
+        if (controlMessageInterval) {
+          clearInterval(controlMessageInterval);
+          controlMessageInterval = null;
+        }
         showChoose();
       });
     }
+
+    // Continuously send control messages while waiting
+    if (controlMessageInterval) clearInterval(controlMessageInterval);
+    controlMessageInterval = setInterval(function () {
+      if (phase !== 'waiting') {
+        clearInterval(controlMessageInterval);
+        controlMessageInterval = null;
+        return;
+      }
+      var level = currentDifficulty || mode;
+      if (level) {
+        sendControlMessage('puter ' + (puterEnabled ? 'on' : 'off'));
+        sendControlMessage('difficulty ' + level);
+      }
+    }, 1500);
   }
 
   function showIncomingChallenge(room) {
@@ -307,7 +339,7 @@
       resultPortrait(won) +
       '<div class="overlay-result ' + (won ? 'overlay-result--win' : 'overlay-result--loss') + '">' +
         '<div class="overlay-title">' + (won ? 'Victory' : 'Defeat') + '</div>' +
-        '<div class="overlay-subtitle">' + (won ? 'Blue AI takes this one.' : 'Red Human takes this one.') + '</div>' +
+        '<div class="overlay-subtitle">' + (won ? 'Red Human takes this one!' : 'Blue AI takes this one.') + '</div>' +
       '</div>' +
       '<div class="overlay-actions overlay-actions--stack">' +
         '<button class="overlay-btn overlay-btn--success" data-action="rematch">Play again</button>' +
@@ -320,7 +352,7 @@
     var rematch = overlay.querySelector('[data-action="rematch"]');
     var difficulty = overlay.querySelector('[data-action="difficulty"]');
     if (rematch) rematch.addEventListener('click', rematchBattle);
-    if (difficulty) difficulty.addEventListener('click', showChoose);
+    if (difficulty) difficulty.addEventListener('click', changeDifficultyAndReload);
   }
 
   function hideOverlay() {
@@ -434,6 +466,9 @@
 
   function pickDifficulty(level) {
     currentDifficulty = level;
+    try {
+      localStorage.removeItem('showdown_autosend_difficulty');
+    } catch (e) {}
     startBattleMusic();
     showWaiting(level);
     detectChallenge();
@@ -449,10 +484,19 @@
       delete room['__aa'];
       delete room.__lastChallengeId;
     }
-    showWaiting(currentDifficulty || 'rematch');
-    detectChallenge();
-    detectBattleStart();
-    sendControlMessage('rematch');
+    if (currentDifficulty) {
+      try {
+        localStorage.setItem('showdown_autosend_difficulty', currentDifficulty);
+      } catch (e) {}
+    }
+    window.location.reload();
+  }
+
+  function changeDifficultyAndReload() {
+    try {
+      localStorage.removeItem('showdown_autosend_difficulty');
+    } catch (e) {}
+    window.location.reload();
   }
 
   function findIncomingChallengeRoom() {
@@ -580,7 +624,17 @@
           try { PS.send('/avatar red'); } catch (err) {}
           setAnimatedSprites();
           lobbyJoinRequested = false;
-          showChoose();
+
+          var savedDifficulty = null;
+          try {
+            savedDifficulty = localStorage.getItem('showdown_autosend_difficulty');
+          } catch (e) {}
+
+          if (savedDifficulty) {
+            pickDifficulty(savedDifficulty);
+          } else {
+            showChoose();
+          }
           detectChallenge();
           detectBattleStart();
         }, 200);
