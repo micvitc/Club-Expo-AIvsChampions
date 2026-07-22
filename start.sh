@@ -5,12 +5,19 @@ PORT="${PORT:-8000}"
 export PORT
 export PSPORT="$PORT"
 
+# Ensure config.js exists for Showdown to run
+if [ ! -f pokemon-showdown/config/config.js ]; then
+  echo "⚠️ pokemon-showdown/config/config.js not found. Copying from config-example.js..."
+  cp pokemon-showdown/config/config-example.js pokemon-showdown/config/config.js
+fi
+
 # 1. Start Pokémon Showdown server in background
 echo "🚀 Starting local Pokémon Showdown on port $PORT..."
 cd pokemon-showdown
 node pokemon-showdown start --skip-build "$PORT" >/dev/null 2>&1 &
 SHOWDOWN_PID=$!
 cd ..
+
 
 # Clean up background process on exit
 trap 'kill $SHOWDOWN_PID 2>/dev/null' EXIT INT TERM
