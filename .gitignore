@@ -105,5 +105,5 @@ pip-selfcheck.json
 .idea/
 *.swp
 *.swo
-config.bat
 node_modules
+config.bat
