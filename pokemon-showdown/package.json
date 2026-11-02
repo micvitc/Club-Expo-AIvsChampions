@@ -1,6 +1,6 @@
 {
   "name": "pokemon-showdown",
-  "description": "The server for the Pokémon Showdown battle simulator",
+  "description": "The server for the Pok\u00e9mon Showdown battle simulator",
   "version": "0.11.10",
   "main": "dist/sim/index.js",
   "types": "dist/sim/index.d.ts",
@@ -32,9 +32,9 @@
     "node": ">=16.0.0"
   },
   "scripts": {
-    "start": "node pokemon-showdown start",
-    "build": "node build",
-    "build-npm": "node build && npx tsc sim/global-types.ts sim/index.ts --declaration --emitDeclarationOnly --declarationDir dist/ --target es2020 --strict --moduleResolution node --types node --lib es2020",
+    "start": "node init && node pokemon-showdown start",
+    "build": "node init && node build",
+    "build-npm": "node init && node build && npx tsc sim/global-types.ts sim/index.ts --declaration --emitDeclarationOnly --declarationDir dist/ --target es2020 --strict --moduleResolution node --types node --lib es2020",
     "test-npm": "npx tsc sim/global-types.ts sim/index.ts --noEmit --target es2020 --strict --moduleResolution node --types node --lib es2020",
     "tsc": "tsc",
     "lint": "eslint --cache",
