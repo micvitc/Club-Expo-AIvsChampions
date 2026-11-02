@@ -109,5 +109,5 @@ pip-selfcheck.json
 # Local build repositories
 pokemon-showdown-client/
 
-config.bat
 node_modules
+config.bat
