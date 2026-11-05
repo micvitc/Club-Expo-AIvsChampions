@@ -106,4 +106,4 @@ pip-selfcheck.json
 *.swp
 *.swo
 node_modules
-config.bat
+.env
